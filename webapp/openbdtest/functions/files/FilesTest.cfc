@@ -59,7 +59,7 @@ function testDirectoryCreate(){
 	DirectoryCreate( ExpandPath("./tmpdirectory/") );
 
 	var df	= GetFileInfo( ExpandPath("./tmpdirectory/") );
-	assertEquals( df.size, 0 );
+	assertEquals( arraylen(DirectoryList(ExpandPath("./tmpdirectory/"))), 0 ); // df.size can return 4096 on some Linux systems even for empty directories.
 	assertEquals( df.type, "directory" );
 
 	FileDelete( ExpandPath("./tmpdirectory/") );
