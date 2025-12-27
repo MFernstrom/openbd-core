@@ -107,7 +107,7 @@
 		<pathelement location="${webinf.jarpath}commons-vfs-2.0-SNAPSHOT.jar" />
 		<pathelement location="${webinf.jarpath}commons-fileupload-1.2.1.jar" />
 		<pathelement location="${webinf.jarpath}commons-lang-2.4.jar" />
-		<pathelement location="${webinf.jarpath}commons-codec-1.4.jar" />
+		<pathelement location="${webinf.jarpath}commons-codec-1.6.jar" />
 
 		<pathelement location="${webinf.jarpath}jericho-html-3.1.jar" />
 		<pathelement location="${webinf.jarpath}jtidy-r938.jar" />
@@ -160,9 +160,9 @@
 		<pathelement location="${webinf.jarpath}aws-java-sdk-s3-1.11.448.jar" />
 		<pathelement location="${webinf.jarpath}jackson-dataformat-cbor-2.6.7.jar" />
 		<pathelement location="${webinf.jarpath}jackson-databind-2.6.7.1.jar" />
-		<pathelement location="${webinf.jarpath}jackson-core-2.6.7.jar" />
 		<pathelement location="${webinf.jarpath}jackson-annotations-2.6.0.jar" />
-		<pathelement location="${webinf.jarpath}jackson-databind-2.3.2.jar" />
+		<!-- jackson-core is embedded in source code under src/com/fasterxml/jackson/core/ -->
+		<!-- jackson-databind-2.3.2.jar removed - using 2.6.7.1 instead -->
 		
 		
 		<!-- For Joda Time -->
@@ -214,6 +214,8 @@
 		<!-- Compile the java code from ${src} into ${build} -->
 		<javac srcdir="${src}" destdir="${build}" debug="off" nowarn="on" classpathref="project.class.path">
 			<compilerarg line="-encoding utf-8" />
+			<!-- Exclude browser applet classes that require deprecated Java Plugin API (removed in Java 9+) -->
+			<exclude name="com/bluedragon/browser/**" />
 		</javac>
 	</target>
 

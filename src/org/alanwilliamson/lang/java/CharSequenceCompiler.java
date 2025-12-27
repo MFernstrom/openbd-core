@@ -62,7 +62,7 @@ public class CharSequenceCompiler<T> {
 	public CharSequenceCompiler(ClassLoader loader, Iterable<String> options) {
 		compiler = ToolProvider.getSystemJavaCompiler();
 		if (compiler == null) {
-			throw new IllegalStateException("Cannot find the system Java compiler. " + "Check that your class path includes tools.jar");
+			throw new IllegalStateException("Cannot find the system Java compiler. " + "Ensure you are running on a JDK (not JRE). For Java 8, tools.jar must be on the classpath.");
 		}
 		classLoader = new ClassLoaderImpl(loader);
 		diagnostics = new DiagnosticCollector<JavaFileObject>();

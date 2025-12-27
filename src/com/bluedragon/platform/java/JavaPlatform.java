@@ -197,14 +197,12 @@ public class JavaPlatform implements Platform {
 		String ps = System.getProperty("path.separator");
 		String fs = System.getProperty("file.separator");
 
-		// Create a java compiler object
-		// NOTE: Using the newer com.sun.tools.javac.Main class causes an
-		// IncompatibleClassChangeError to
-		// be thrown by the compiler when BD is compiled with JDK 1.3 and run with
-		// JDK 1.4. So for
-		// now we'll use the older sun.tools.javac.Main class.
-		@SuppressWarnings("deprecation")
-		sun.tools.javac.Main javac = new sun.tools.javac.Main(javacOut, "BD Web Services Client Compiler");
+		// Get the system Java compiler using the modern javax.tools API
+		// This works with Java 8+ and doesn't require tools.jar in Java 9+
+		javax.tools.JavaCompiler javac = javax.tools.ToolProvider.getSystemJavaCompiler();
+		if (javac == null) {
+			throw new IOException("Cannot find the system Java compiler. Ensure you are running on a JDK (not JRE).");
+		}
 
 		// Determine the classpath needed by the java compiler
 		String javacClasspath = "";
@@ -223,19 +221,27 @@ public class JavaPlatform implements Platform {
 
 		String altLibDir	= cfEngine.getAltLibPath();
 
-		if (!bcp.contains("webservices.jar") && !cp.contains("webservices.jar")) {
+		if (bcp != null && !bcp.contains("webservices.jar") && !cp.contains("webservices.jar")) {
+			javacClasspath += ps + DynamicWebServiceTypeGenerator.getJarPath(libDir, altLibDir, "webservices.jar");
+		} else if (bcp == null && !cp.contains("webservices.jar")) {
 			javacClasspath += ps + DynamicWebServiceTypeGenerator.getJarPath(libDir, altLibDir, "webservices.jar");
 		}
 
-		if (!bcp.contains("wsdl4j.jar") && !cp.contains("wsdl4j.jar")) {
+		if (bcp != null && !bcp.contains("wsdl4j.jar") && !cp.contains("wsdl4j.jar")) {
+			javacClasspath += ps + DynamicWebServiceTypeGenerator.getJarPath(libDir, altLibDir, "wsdl4j.jar");
+		} else if (bcp == null && !cp.contains("wsdl4j.jar")) {
 			javacClasspath += ps + DynamicWebServiceTypeGenerator.getJarPath(libDir, altLibDir, "wsdl4j.jar");
 		}
 
-		if (!bcp.contains("saaj.jar") && !cp.contains("saaj.jar")) {
+		if (bcp != null && !bcp.contains("saaj.jar") && !cp.contains("saaj.jar")) {
+			javacClasspath += ps + DynamicWebServiceTypeGenerator.getJarPath(libDir, altLibDir, "saaj.jar");
+		} else if (bcp == null && !cp.contains("saaj.jar")) {
 			javacClasspath += ps + DynamicWebServiceTypeGenerator.getJarPath(libDir, altLibDir, "saaj.jar");
 		}
 
-		if (!bcp.contains("jaxrpc.jar") && !cp.contains("jaxrpc.jar")) {
+		if (bcp != null && !bcp.contains("jaxrpc.jar") && !cp.contains("jaxrpc.jar")) {
+			javacClasspath += ps + DynamicWebServiceTypeGenerator.getJarPath(libDir, altLibDir, "jaxrpc.jar");
+		} else if (bcp == null && !cp.contains("jaxrpc.jar")) {
 			javacClasspath += ps + DynamicWebServiceTypeGenerator.getJarPath(libDir, altLibDir, "jaxrpc.jar");
 		}
 
@@ -245,6 +251,7 @@ public class JavaPlatform implements Platform {
 		javacClasspath += ps + DynamicWebServiceTypeGenerator.getJarPath(libDir, altLibDir, "OpenBlueDragon.jar");
 
 		// Now add the boot classpath to the java compiler classpath
+		// Note: sun.boot.class.path is null in Java 9+
 		if (bcp != null) {
 			javacClasspath += ps + bcp;
 		}
@@ -254,20 +261,58 @@ public class JavaPlatform implements Platform {
 			javacClasspath += ps + cp;
 		}
 
-		List<String> list = new ArrayList<String>();
-		if (javacClasspath != null) {
-			list.add("-classpath");
-			list.add(javacClasspath);
+		// Build the list of source files to compile
+		List<String> fileList = new ArrayList<String>();
+		compileFileList(new java.io.File(outDir), fileList);
+
+		// Build compiler options
+		List<String> options = new ArrayList<String>();
+		if (javacClasspath != null && !javacClasspath.isEmpty()) {
+			options.add("-classpath");
+			options.add(javacClasspath);
 		}
-		compileFileList(new java.io.File(outDir), list);
-		String[] args = list.toArray(new String[list.size()]);
 
-		@SuppressWarnings("deprecation")
-		boolean rtn = javac.compile(args);
-		if (!rtn)
+		// Create a diagnostic collector to capture compilation errors
+		javax.tools.DiagnosticCollector<javax.tools.JavaFileObject> diagnostics =
+			new javax.tools.DiagnosticCollector<javax.tools.JavaFileObject>();
+
+		// Get the standard file manager
+		javax.tools.StandardJavaFileManager fileManager =
+			javac.getStandardFileManager(diagnostics, null, null);
+
+		// Get the compilation units (source files to compile)
+		Iterable<? extends javax.tools.JavaFileObject> compilationUnits =
+			fileManager.getJavaFileObjectsFromStrings(fileList);
+
+		// Create a writer to capture compiler output
+		java.io.PrintWriter writer = new java.io.PrintWriter(javacOut);
+
+		// Create the compilation task
+		javax.tools.JavaCompiler.CompilationTask task =
+			javac.getTask(writer, fileManager, diagnostics, options, null, compilationUnits);
+
+		// Run the compilation
+		Boolean result = task.call();
+
+		// Close the file manager
+		try {
+			fileManager.close();
+		} catch (IOException e) {
+			// Ignore close errors
+		}
+
+		writer.flush();
+
+		boolean success = (result != null && result.booleanValue());
+		if (!success) {
 			System.err.println("Could not compile client web service stub classes with classpath: " + javacClasspath);
-		return rtn;
+			// Print diagnostics to help debug compilation errors
+			for (javax.tools.Diagnostic<? extends javax.tools.JavaFileObject> diagnostic : diagnostics.getDiagnostics()) {
+				System.err.println(diagnostic.toString());
+			}
+		}
 
+		return success;
 	}
 
 
