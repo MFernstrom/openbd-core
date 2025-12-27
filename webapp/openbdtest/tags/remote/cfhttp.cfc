@@ -136,7 +136,7 @@
 <cffunction name="testFormDataCharset">
 	<cfset var cfhttp = "">
 	<cfhttp url="http://#cgi.server_name#:#cgi.server_port##cgi.context_path#/openbdtest/tags/remote/cfhttpresponse.cfm" method="post" charset="windows-1252">
-		<cfhttpparam type="formfield" name="test" value="abc´´def"/>
+		<cfhttpparam type="formfield" name="test" value="abcÂ´Â´def"/>
 		<cfhttpparam type="header" name="charenc" value="windows-1252"/>
 	</cfhttp>
 	
@@ -154,7 +154,7 @@
 <cffunction name="testFormDataCharset2">
 	<cfset var cfhttp = "">
 	<cfhttp url="http://#cgi.server_name#:#cgi.server_port##cgi.context_path#/openbdtest/tags/remote/cfhttpresponse.cfm" method="post" charset="utf-8">
-		<cfhttpparam type="formfield" name="test" value="abc´´def"/>
+		<cfhttpparam type="formfield" name="test" value="abcÂ´Â´def"/>
 		<cfhttpparam type="header" name="charenc" value="utf-8"/>
 	</cfhttp>
 	
@@ -233,19 +233,19 @@
 
 <cffunction name="testDownloadToFile">
 	<cfscript>
-	var path	= ExpandPath(".");
-	var file	= "logo.png";
-	var fullfilepath = Expandpath( file );
-	try{
-		FileDelete( fullfilepath );
-	}catch( Any ignored ){}
+		var path	= ExpandPath(".");
+		var file	= "logo.png";
+		var fullfilepath = Expandpath( file );
+		try{
+			FileDelete( fullfilepath );
+		}catch( Any ignored ){}
 	</cfscript>
 
-	<cfhttp url="http://www.openbd.org/manual/sd_openBD_32.png" file="#file#" path="#path#"></cfhttp>
+	<cfhttp url="https://itp.cdn.icann.org/assets/images/www-static/logo/icann-logo-tagline-en_680x152.webp" file="#file#" path="#path#"></cfhttp>
 
 	<cfset assertTrue( FileExists( fullfilepath ) )>
 	<cfset assertTrue( !isBinary(cfhttp.filecontent) )>
-	<cfset assertEquals( 1904, cfhttp.responseheader["Content-Length"] )>
+	<cfset assertEquals( 7824, cfhttp.responseheader["Content-Length"] )>
 	<cfset assertEquals( 200, cfhttp.responseheader["STATUS_CODE"] )>
 </cffunction>
 
@@ -281,11 +281,11 @@
 	}catch( Any ignored ){}
 	</cfscript>
 
-	<cfhttp url="http://www.openbd.org/manual/sd_openBD_32.png" GETASBINARY="yes"></cfhttp>
+	<cfhttp url="https://itp.cdn.icann.org/assets/images/www-static/logo/icann-logo-tagline-en_680x152.webp" GETASBINARY="yes"></cfhttp>
 
 	<cfset assertTrue( !FileExists(	fullfilepath ) )>
 	<cfset assertTrue( isBinary(cfhttp.filecontent) )>
-	<cfset assertEquals( 1904, cfhttp.responseheader["Content-Length"] )>
+	<cfset assertEquals( 7824, cfhttp.responseheader["Content-Length"] )>
 	<cfset assertEquals( 200, cfhttp.responseheader["STATUS_CODE"] )>
 </cffunction>
 
