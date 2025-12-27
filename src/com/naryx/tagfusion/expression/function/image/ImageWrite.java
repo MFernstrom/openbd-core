@@ -32,6 +32,8 @@
 
 package com.naryx.tagfusion.expression.function.image;
 
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
 import java.util.Iterator;
 import java.util.Locale;
 
@@ -75,9 +77,10 @@ public class ImageWrite extends ImageInfo {
 	
 	public cfData execute( cfSession _session, cfArgStructData argStruct ) throws cfmRunTimeException{
 		cfImageData im	= getImage( _session, argStruct );
-		
+
 		// Determine where we want to save this
 		String destination	= getNamedStringParam(argStruct, "destination", null);
+		
 		if ( destination == null ){
 			cfData	fD	= im.getData("source");
 			if ( fD == null ){
@@ -115,7 +118,7 @@ public class ImageWrite extends ImageInfo {
 
 			if ( ext.equals("jpg") || ext.equals("jpeg") ){
 				float compression = 0.75f;
-				
+
 				cfData qD = getNamedParam(argStruct, "quality");
 				if ( qD != null && qD.getDataType() == cfData.CFNUMBERDATA )
 					compression	= (float)((cfNumberData)qD).getDouble();
@@ -153,34 +156,55 @@ public class ImageWrite extends ImageInfo {
 	}
 	
 	private void writeImageJpg(cfImageData im, cfVFSData fileObj, float compression ) throws Exception {
-		ImageWriteParam iwparam = new ImageWriteParam(); 
-		iwparam.setCompressionMode(ImageWriteParam.MODE_EXPLICIT) ; 
+		BufferedImage sourceImage = im.getImage();
+
+		// JPEG doesn't support alpha channels - convert to RGB if needed
+		BufferedImage rgbImage;
+		if (sourceImage.getType() == BufferedImage.TYPE_INT_ARGB ||
+		    sourceImage.getType() == BufferedImage.TYPE_4BYTE_ABGR ||
+		    sourceImage.getColorModel().hasAlpha()) {
+
+			// Create RGB image
+			rgbImage = new BufferedImage(sourceImage.getWidth(), sourceImage.getHeight(), BufferedImage.TYPE_INT_RGB);
+			// Draw original image onto RGB image (alpha channel will be composited against white background)
+			Graphics2D g = rgbImage.createGraphics();
+			g.drawImage(sourceImage, 0, 0, null);
+			g.dispose();
+		} else {
+			// Already RGB, use as-is
+			rgbImage = sourceImage;
+		}
+
+		ImageWriteParam iwparam = new ImageWriteParam();
+		iwparam.setCompressionMode(ImageWriteParam.MODE_EXPLICIT) ;
 		iwparam.setCompressionQuality( compression );
 		iwparam.setProgressiveMode( ImageWriteParam.MODE_DEFAULT );
-		
-		ImageWriter writer = null; 
-		Iterator iter = ImageIO.getImageWritersByFormatName("jpg"); 
-		if (iter.hasNext()) { 
-			writer = (ImageWriter)iter.next(); 
-		} 
-		
-		ImageOutputStream ios = ImageIO.createImageOutputStream(fileObj.getStreamWriter()); 
-		writer.setOutput(ios); 
-		writer.write(null, new IIOImage( im.getImage(), null, null), iwparam); 
 
-		ios.flush(); 
-		writer.dispose(); 
-		ios.close(); 
+		ImageWriter writer = null;
+		Iterator iter = ImageIO.getImageWritersByFormatName("jpg");
+		if (iter.hasNext()) {
+			writer = (ImageWriter)iter.next();
+		}
+
+		ImageOutputStream ios = ImageIO.createImageOutputStream(fileObj.getStreamWriter());
+		writer.setOutput(ios);
+		writer.write(null, new IIOImage( rgbImage, null, null), iwparam);
+
+		ios.flush();
+		writer.dispose();
+		ios.close();
 	}
 	
-	private static class ImageWriteParam extends JPEGImageWriteParam { 
-		public ImageWriteParam() { super(Locale.getDefault()); }  
-		
-		public void setCompressionQuality(float quality) { 
-			if (quality < 0.0F || quality > 1.0F) { 
-				throw new IllegalArgumentException("Quality out-of-bounds!"); 
-			} 
-			this.compressionQuality = 256 - (quality * 256); 
-		} 
+	private static class ImageWriteParam extends JPEGImageWriteParam {
+		public ImageWriteParam() {
+			super(Locale.getDefault());
+		}
+
+		public void setCompressionQuality(float quality) {
+			if (quality < 0.0F || quality > 1.0F) {
+				throw new IllegalArgumentException("Quality out-of-bounds!");
+			}
+			this.compressionQuality = 256 - (quality * 256);
+		}
 	}
 }
