@@ -43,6 +43,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Vector;
 
+import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.oro.text.regex.MalformedPatternException;
 import org.apache.oro.text.regex.Pattern;
 import org.apache.oro.text.regex.PatternCompiler;
@@ -1287,14 +1288,7 @@ public class string extends java.lang.Object {
 
 	public static String escapeHtml(String str) {
 		try {
-			PatternMatcher matcher = new Perl5Matcher();
-			PatternCompiler compiler = new Perl5Compiler();
-
-			Pattern pattern = compiler.compile("&(([a-z][a-zA-Z0-9]*)|(#\\d{2,6});)", Perl5Compiler.CASE_INSENSITIVE_MASK | Perl5Compiler.SINGLELINE_MASK);
-
-			String tmp = Util.substitute(matcher, pattern, new Perl5Substitution("&amp;$1"), str, Util.SUBSTITUTE_ALL);
-
-			return replaceChars(tmp, new char[] { '<', '>', '\"' }, new String[] { "&lt;", "&gt;", "&quot;" });
+			return StringEscapeUtils.escapeHtml(str);
 		} catch (Exception e) {
 			return str;
 		}// won't happen
