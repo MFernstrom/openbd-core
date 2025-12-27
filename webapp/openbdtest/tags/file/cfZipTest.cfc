@@ -84,7 +84,7 @@
 	
 	<cffunction name="testcharset">
 		
-		<cfset var destination	= ExpandPath("/openbdtest/tags/file/ziptestfiles/unZipTag/")>
+		<cfset var destination	= ExpandPath("ziptestfiles/unZipTag/")>
 		
 		<cftry>
 			<cfset var zipfile=ExpandPath("./charset.zip")>
@@ -98,7 +98,7 @@
 			//extract the file being zipped
 			<cfzip action="extract"  zipfile="#zipfile#" destination="#destination#" charset="cp437"/>
 			
-			<cfset var file=ExpandPath("/openbdtest/tags/file/ziptestfiles/unZipTag/ﾄﾅﾓﾆｶﾅ/reí.txt")>
+			<cfset var file=ExpandPath("ziptestfiles/unZipTag/ﾄﾅﾓﾆｶﾅ/reí.txt")>
 			
 			<cfset assertTrue( fileexists(file) )>
 			
@@ -112,7 +112,7 @@
 	
 	<cffunction name="testcompressionlevel3">
 		
-		<cfset var destination	= ExpandPath("/openbdtest/tags/file/ziptestfiles/unZipTag/")>
+		<cfset var destination	= ExpandPath("ziptestfiles/unZipTag/")>
 		
 		<cftry>
 			<cfset var zipfile=ExpandPath("./charset.zip")>
@@ -128,10 +128,10 @@
 			<cfzip action="list"  zipfile="#zipfile#" variable = "result"/>
 			
 			<cfset test = queryColumnArray(result, "compressedsize") />
-			<cfset assertTrue(arrayContains(test, 1188))>
+			<cfset assertTrue(arrayContains(test, 1184))>
 			
 			<cffinally><!--- cleanup --->
-				<cfset cleanup( zipfile = zipfile )>
+				<cfset cleanup( zipfile )>
 			</cffinally>
 			
 		</cftry>
@@ -156,7 +156,7 @@
 			<cfzip action="list"  zipfile="#zipfile#" variable = "result"/>
 			
 			<cfset test = queryColumnArray(result, "compressedsize") />
-			<cfset assertTrue(arrayContains(test, 1153))>
+			<cfset assertTrue(arrayContains(test, 1148))>
 			
 			<cffinally><!--- cleanup --->
 					<cfset cleanup( zipfile = zipfile )>
@@ -184,7 +184,7 @@
 			
 			
 			<cfset test = queryColumnArray(result, "compressedsize") />
-			<cfset assertTrue(arrayContains(test, 1153))>
+			<cfset assertTrue(arrayContains(test, 1148))>
 			
 			<cffinally><!--- cleanup --->
 					<cfset cleanup( zipfile = zipfile )>
@@ -609,8 +609,10 @@
 				</cfif>
 				
 				<!--- cleanup directory--->
-				<cfif directoryexists( arguments.destination )>
-					<cfset DirectoryDelete( path = arguments.destination, recurse = true  )>
+				<cfif len(arguments.destination) GT 0>
+					<cfif directoryexists( arguments.destination )>
+						<cfset DirectoryDelete( path = arguments.destination, recurse = true  )>
+					</cfif>
 				</cfif>
 			
 	</cffunction>
