@@ -33,58 +33,58 @@
 	<cffunction name="testNamingHtmlSourceFormat">
 
 		<cfset res = HtmlSourceformat("<table><tr><td>HtmlSourceformat</td></tr></table>")>
-		<cfset assertEquals(67, len(res))>
-		<cfset match =  Rematchnocase(regular="[^<*(/)+>]+",string=res,unique=false) >
+		<cfset assertEquals(62, len(res))>
+		<cfset match = Rematchnocase(regular="[^<*(/)+>]+",string=res,unique=false) >
 		<cfset assertEquals(12, len(match))>
 		<cfset assertEquals("table",match[1])>
-		<cfset assertEquals(4,len(match[2]))>
+		<cfset assertEquals(3,len(match[2]))>
 		<cfset assertEquals(0,len(trim(match[2])) )>
 		<cfset assertEquals("tr",match[3])>
-		<cfset assertEquals(6,len(match[4]))>
+		<cfset assertEquals(5,len(match[4]))>
 		<cfset assertEquals(0,len(trim(match[4])) )>
 		<cfset assertEquals("td",match[5])>
 		<cfset assertEquals("HtmlSourceformat",match[6])>
 		<cfset assertEquals("td",match[7])>
-		<cfset assertEquals(4,len(match[8]))>
+		<cfset assertEquals(3,len(match[8]))>
 		<cfset assertEquals(0,len(trim(match[8])) )>
 		<cfset assertEquals("tr",match[9])>
-		<cfset assertEquals(2,len(match[10]))>
+		<cfset assertEquals(1,len(match[10]))>
 		<cfset assertEquals(0,len(trim(match[10])) )>
 		<cfset assertEquals("table",match[11])>
-		<cfset assertEquals(2,len(match[12]))>
+		<cfset assertEquals(1,len(match[12]))>
 		<cfset assertEquals(0,len(trim(match[12])))>
 
 		<cfset res = HtmlSourceformat(html="<table><tr><td>HtmlSourceformat</td></tr></table>")>
-		<cfset assertEquals(67, len(res))>
+		<cfset assertEquals(62, len(res))>
 		<cfset match =  Rematchnocase(regular="[^<*(/)+>]+",string=res,unique=false) >
 		<cfset assertEquals(12, len(match))>
 		<cfset assertEquals("table",match[1])>
-		<cfset assertEquals(4,len(match[2]))>
+		<cfset assertEquals(3,len(match[2]))>
 		<cfset assertEquals(0,len(trim(match[2])) )>
 		<cfset assertEquals("tr",match[3])>
-		<cfset assertEquals(6,len(match[4]))>
+		<cfset assertEquals(5,len(match[4]))>
 		<cfset assertEquals(0,len(trim(match[4])) )>
 		<cfset assertEquals("td",match[5])>
 		<cfset assertEquals("HtmlSourceformat",match[6])>
 		<cfset assertEquals("td",match[7])>
-		<cfset assertEquals(4,len(match[8]))>
+		<cfset assertEquals(3,len(match[8]))>
 		<cfset assertEquals(0,len(trim(match[8])) )>
 		<cfset assertEquals("tr",match[9])>
-		<cfset assertEquals(2,len(match[10]))>
+		<cfset assertEquals(1,len(match[10]))>
 		<cfset assertEquals(0,len(trim(match[10])) )>
 		<cfset assertEquals("table",match[11])>
-		<cfset assertEquals(2,len(match[12]))>
+		<cfset assertEquals(1,len(match[12]))>
 		<cfset assertEquals(0,len(trim(match[12])))>
 
 		<cfset res = HtmlSourceformat("HtmlSourceformat")>
 		<cfset match =  Rematchnocase(regular="[^>]+",string=res,unique=false) >
-		<cfset assertEquals(18, len(res))>
+		<cfset assertEquals(17, len(res))>
 		<cfset assertEquals(1, len(match))>
 		<cfset assertEquals("HtmlSourceformat",trim(match[1]))>
 
 		<cfset res = HtmlSourceformat(html="HtmlSourceformat")>
 		<cfset match =  Rematchnocase(regular="[^>]+",string=res,unique=false) >
-		<cfset assertEquals(18, len(res))>
+		<cfset assertEquals(17, len(res))>
 		<cfset assertEquals(1, len(match))>
 		<cfset assertEquals("HtmlSourceformat",trim(match[1]))>
 
