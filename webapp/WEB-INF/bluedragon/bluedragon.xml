@@ -1,23 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <server>
   <system>
-    <assert>false</assert>
-    <runtimelogging>true</runtimelogging>
-    <legacyformvalidation>false</legacyformvalidation>
-    <debug>true</debug>
-    <journal>password1234</journal>
-    <component-cfc>/WEB-INF/bluedragon/component.cfc</component-cfc>
-    <whitespacecomp>false</whitespacecomp>
-    <nativelibdir>/WEB-INF/bin</nativelibdir>
-    <missingtemplatehandler></missingtemplatehandler>
-    <lastfile>P:\openbd-core\webapp\WEB-INF\bluedragon\bluedragon.xml.bak.1</lastfile>
-    <journalignoreuri>/journal</journalignoreuri>
-    <errorhandler></errorhandler>
     <buffersize>0</buffersize>
     <password>admin</password>
-    <cfoutputshorthand>true</cfoutputshorthand>
-    <lastupdated>08/Nov/2018 16:22.30</lastupdated>
+    <assert>false</assert>
+    <missingtemplatehandler></missingtemplatehandler>
+    <lastfile>/home/dev/Development/repos/openbd-core/webapp/WEB-INF/bluedragon/bluedragon.xml.bak.1</lastfile>
+    <runtimelogging>true</runtimelogging>
     <defaultcharset>utf-8</defaultcharset>
+    <component-cfc>/WEB-INF/bluedragon/component.cfc</component-cfc>
+    <journal>password1234</journal>
+    <debug>true</debug>
+    <legacyformvalidation>false</legacyformvalidation>
+    <cfoutputshorthand>true</cfoutputshorthand>
+    <nativelibdir>/WEB-INF/bin</nativelibdir>
+    <errorhandler></errorhandler>
+    <journalignoreuri>/journal</journalignoreuri>
+    <websocket>
+      <port>8580</port>
+      <enabled>true</enabled>
+    </websocket>
+    <lastupdated>27/Dec/2025 21:10.25</lastupdated>
+    <whitespacecomp>false</whitespacecomp>
   </system>
   <file>
     <maxfiles>1000</maxfiles>

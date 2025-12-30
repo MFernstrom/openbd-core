@@ -93,6 +93,7 @@
 	<classpathentry kind="lib" path="webapp/WEB-INF/lib/lettuce-core-5.0.0.RELEASE.jar"/>
 	<classpathentry kind="lib" path="webapp/WEB-INF/lib/netty-buffer-4.1.15.Final.jar"/>
 	<classpathentry kind="lib" path="webapp/WEB-INF/lib/netty-codec-4.1.15.Final.jar"/>
+	<classpathentry kind="lib" path="webapp/WEB-INF/lib/netty-codec-http-4.1.15.Final.jar"/>
 	<classpathentry kind="lib" path="webapp/WEB-INF/lib/netty-common-4.1.15.Final.jar"/>
 	<classpathentry kind="lib" path="webapp/WEB-INF/lib/netty-handler-4.1.15.Final.jar"/>
 	<classpathentry kind="lib" path="webapp/WEB-INF/lib/netty-resolver-4.1.15.Final.jar"/>

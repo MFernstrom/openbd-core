@@ -14,6 +14,10 @@
     <defaultcharset>utf-8</defaultcharset>
     <cfoutputshorthand>true</cfoutputshorthand>
     <legacyformvalidation>false</legacyformvalidation>
+    <websocket>
+      <enabled>true</enabled>
+      <port>8580</port>
+    </websocket>
   </system>
   <file>
     <maxfiles>1000</maxfiles>

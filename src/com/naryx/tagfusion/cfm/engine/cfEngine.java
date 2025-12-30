@@ -72,6 +72,7 @@ import com.naryx.tagfusion.cfm.sql.cfDataSourceStatus;
 import com.naryx.tagfusion.cfm.sql.pool.DataSourcePoolFactory;
 import com.naryx.tagfusion.cfm.tag.tagChecker;
 import com.naryx.tagfusion.cfm.tag.ext.thread.cfThreadRunner;
+import com.naryx.tagfusion.cfm.websocket.WebSocketServer;
 import com.naryx.tagfusion.expression.compile.expressionEngine;
 import com.naryx.tagfusion.expression.function.string.deserializejson;
 import com.naryx.tagfusion.xmlConfig.xmlCFML;
@@ -133,6 +134,7 @@ public class cfEngine extends Object implements cfEngineMBean {
 
 	public AverageTracker avgTracker;
 	public JournalManager journalManager;
+	private WebSocketServer wsServer;
 
 	private String defaultCharset, webResourcePath;
 
@@ -329,6 +331,19 @@ public class cfEngine extends Object implements cfEngineMBean {
 		// Setup the Journal Manager
 		journalManager = new JournalManager();
 
+		// Initialize WebSocket server (if enabled)
+		try {
+			boolean wsEnabled = getSystemParameters().getBoolean( "server.websocket.enabled", false );
+			if ( wsEnabled ) {
+				int wsPort = getSystemParameters().getInt( "server.websocket.port", 8580 );
+				wsServer = WebSocketServer.getInstance();
+				wsServer.start( wsPort );
+			}
+		} catch ( Exception e ) {
+			// Log error but don't fail server startup
+			log( "[WebSocket] Failed to start WebSocket server: " + e.getMessage() );
+		}
+
 		log( runtimeMessages.getString( "cfEngine.serverStarted" ) );
 
 		// The Engine is ready for requests, so lets call the ServerCFC handling
@@ -383,6 +398,11 @@ public class cfEngine extends Object implements cfEngineMBean {
 
 		log( PRODUCT_NAME + " is being shut down ... " );
 		bEngineActive = false;
+
+		// Stop WebSocket server (if running)
+		if ( thisInstance.wsServer != null && thisInstance.wsServer.isRunning() ) {
+			thisInstance.wsServer.stop();
+		}
 
 		cfThreadRunner.stopAllThreads();
 
