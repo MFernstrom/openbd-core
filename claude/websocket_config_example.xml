@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  OpenBD WebSocket Configuration Example
+
+  Add this section to your bluedragon.xml file under the <system> element
+  to enable WebSocket support.
+-->
+
+<system>
+    <!-- Other system settings... -->
+
+    <!-- WebSocket Configuration (Phase 1) -->
+    <websocket>
+        <!-- Enable/disable WebSocket server (default: false) -->
+        <enabled>true</enabled>
+
+        <!-- Port for WebSocket connections (default: 8580) -->
+        <port>8580</port>
+    </websocket>
+
+    <!-- Other system settings... -->
+</system>
+
+<!--
+  Usage:
+
+  1. Add the <websocket> section to your bluedragon.xml
+  2. Set enabled="true" to start the WebSocket server
+  3. Optionally change the port (default is 8580)
+  4. Restart OpenBD
+  5. Connect from browser: ws://localhost:8580/openbd/ws
+
+  Phase 1 Features:
+  - Basic WebSocket connection
+  - Echo messages back to client
+  - Connection lifecycle management
+  - Multiple concurrent connections supported
+
+  Phase 2+ will add:
+  - Channel-based messaging
+  - Subscription management
+  - Channel Listener CFCs
+  - Server-side publish/subscribe
+-->
