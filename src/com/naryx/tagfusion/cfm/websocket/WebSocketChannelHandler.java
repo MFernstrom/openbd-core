@@ -36,7 +36,11 @@ import io.netty.handler.codec.http.websocketx.PongWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 
+import com.naryx.tagfusion.cfm.engine.cfData;
 import com.naryx.tagfusion.cfm.engine.cfEngine;
+import com.naryx.tagfusion.cfm.engine.cfStructData;
+import com.naryx.tagfusion.expression.function.string.deserializejson;
+import com.naryx.tagfusion.expression.function.string.serializejson;
 
 /**
  * Netty channel handler for WebSocket connections.
@@ -157,8 +161,7 @@ public class WebSocketChannelHandler extends SimpleChannelInboundHandler<WebSock
 	/**
 	 * Handle text message received from client
 	 *
-	 * Phase 1: Simple echo
-	 * Phase 2: Will parse JSON and route to appropriate handler
+	 * Phase 2: Parse JSON and route to channel manager
 	 *
 	 * @param message the text message received
 	 */
@@ -172,35 +175,236 @@ public class WebSocketChannelHandler extends SimpleChannelInboundHandler<WebSock
 			cfEngine.log("[WebSocket] Received from " + connection.getConnectionId() + ": " +
 			             (message.length() > 100 ? message.substring(0, 100) + "..." : message));
 
-			// Phase 1: Simple echo back to client
-			connection.sendMessage("Echo: " + message);
+			// Parse JSON message
+			cfStructData jsonMessage = parseJSON(message);
+			if (jsonMessage == null) {
+				sendError("Invalid JSON format");
+				return;
+			}
 
-			// TODO Phase 2: Parse JSON protocol and route to channel manager
-			// Example:
-			// JSONObject json = new JSONObject(message);
-			// String type = json.getString("type");
-			// switch (type) {
-			//     case "subscribe":
-			//         handleSubscribe(json);
-			//         break;
-			//     case "publish":
-			//         handlePublish(json);
-			//         break;
-			//     case "unsubscribe":
-			//         handleUnsubscribe(json);
-			//         break;
-			//     default:
-			//         sendError("Unknown message type: " + type);
-			// }
+			// Get message type
+			String type = getString(jsonMessage, "type");
+			if (type == null) {
+				sendError("Missing 'type' field in message");
+				return;
+			}
+
+			// Route to appropriate handler
+			switch (type.toLowerCase()) {
+				case "subscribe":
+					handleSubscribe(jsonMessage);
+					break;
+
+				case "publish":
+					handlePublish(jsonMessage);
+					break;
+
+				case "unsubscribe":
+					handleUnsubscribe(jsonMessage);
+					break;
+
+				default:
+					sendError("Unknown message type: " + type);
+			}
 
 		} catch (Exception e) {
 			cfEngine.log("[WebSocket] Error handling message: " + e.getMessage());
-
-			// Send error back to client (Phase 2 will use JSON protocol)
-			if (connection != null) {
-				connection.sendMessage("{\"type\":\"error\",\"message\":\"Invalid message format\"}");
-			}
+			e.printStackTrace();
+			sendError("Internal server error");
 		}
+	}
+
+	/**
+	 * Handle subscribe message
+	 *
+	 * Expected JSON: {"type":"subscribe", "channelName":"...", "subscriberInfo":{...}}
+	 */
+	private void handleSubscribe(cfStructData message) {
+		String channelName = getString(message, "channelName");
+		if (channelName == null) {
+			sendError("Missing 'channelName' field");
+			return;
+		}
+
+		// Get optional subscriber info
+		cfStructData subscriberInfo = getStruct(message, "subscriberInfo");
+
+		// Subscribe via channel manager
+		WebSocketChannelManager manager = WebSocketChannelManager.getInstance();
+		boolean success = manager.subscribe(channelName, connection, subscriberInfo);
+
+		if (success) {
+			// Send success response
+			sendResponse("subscribed", channelName, null);
+		} else {
+			sendError("Failed to subscribe to channel: " + channelName);
+		}
+	}
+
+	/**
+	 * Handle publish message
+	 *
+	 * Expected JSON: {"type":"publish", "channelName":"...", "message":{...}}
+	 */
+	private void handlePublish(cfStructData message) {
+		String channelName = getString(message, "channelName");
+		if (channelName == null) {
+			sendError("Missing 'channelName' field");
+			return;
+		}
+
+		// Get the message data (can be any type)
+		Object messageData = message.getData("message");
+		if (messageData == null) {
+			sendError("Missing 'message' field");
+			return;
+		}
+
+		// Build broadcast message in JSON format
+		String broadcastMessage = "{\"type\":\"message\",\"channelName\":\"" +
+		                         escapeJSON(channelName) + "\",\"message\":" +
+		                         serializeJSON(messageData) + "}";
+
+		// Publish via channel manager
+		WebSocketChannelManager manager = WebSocketChannelManager.getInstance();
+		boolean success = manager.publish(channelName, broadcastMessage);
+
+		if (!success) {
+			sendError("Failed to publish to channel: " + channelName);
+		}
+	}
+
+	/**
+	 * Handle unsubscribe message
+	 *
+	 * Expected JSON: {"type":"unsubscribe", "channelName":"..."}
+	 */
+	private void handleUnsubscribe(cfStructData message) {
+		String channelName = getString(message, "channelName");
+		if (channelName == null) {
+			sendError("Missing 'channelName' field");
+			return;
+		}
+
+		// Unsubscribe via channel manager
+		WebSocketChannelManager manager = WebSocketChannelManager.getInstance();
+		boolean success = manager.unsubscribe(channelName, connection);
+
+		if (success) {
+			sendResponse("unsubscribed", channelName, null);
+		} else {
+			sendError("Failed to unsubscribe from channel: " + channelName);
+		}
+	}
+
+	/**
+	 * Send a response message to the client
+	 */
+	private void sendResponse(String type, String channelName, String message) {
+		StringBuilder json = new StringBuilder();
+		json.append("{\"type\":\"").append(escapeJSON(type)).append("\"");
+
+		if (channelName != null) {
+			json.append(",\"channelName\":\"").append(escapeJSON(channelName)).append("\"");
+		}
+
+		if (message != null) {
+			json.append(",\"message\":\"").append(escapeJSON(message)).append("\"");
+		}
+
+		json.append("}");
+
+		connection.sendMessage(json.toString());
+	}
+
+	/**
+	 * Send an error message to the client
+	 */
+	private void sendError(String errorMessage) {
+		String json = "{\"type\":\"error\",\"message\":\"" + escapeJSON(errorMessage) + "\"}";
+		connection.sendMessage(json);
+	}
+
+	/**
+	 * Parse JSON string to cfStructData
+	 */
+	private cfStructData parseJSON(String json) {
+		try {
+			Object result = deserializejson.getCfDataFromJSon(json, false);
+			return (result instanceof cfStructData) ? (cfStructData) result : null;
+		} catch (Exception e) {
+			cfEngine.log("[WebSocket] JSON parse error: " + e.getMessage());
+			return null;
+		}
+	}
+
+	/**
+	 * Get string value from struct
+	 */
+	private String getString(cfStructData struct, String key) {
+		try {
+			Object value = struct.getData(key);
+			return (value != null) ? value.toString() : null;
+		} catch (Exception e) {
+			return null;
+		}
+	}
+
+	/**
+	 * Get struct value from struct
+	 */
+	private cfStructData getStruct(cfStructData struct, String key) {
+		try {
+			Object value = struct.getData(key);
+			return (value instanceof cfStructData) ? (cfStructData) value : null;
+		} catch (Exception e) {
+			return null;
+		}
+	}
+
+	/**
+	 * Serialize object to JSON string using OpenBD's serializejson
+	 */
+	private String serializeJSON(Object obj) {
+		try {
+			if (obj == null) {
+				return "null";
+			}
+
+			// If it's already a cfData type, serialize it properly
+			if (obj instanceof cfData) {
+				StringBuilder buffer = new StringBuilder();
+				serializejson serializer = new serializejson();
+				serializer.encodeJSON(buffer, (cfData)obj, false,
+				                     serializejson.CaseType.MAINTAIN,
+				                     serializejson.DateType.LONG);
+				return buffer.toString();
+			}
+
+			// For non-cfData types, do simple serialization
+			if (obj instanceof String) {
+				return "\"" + escapeJSON(obj.toString()) + "\"";
+			} else if (obj instanceof Number || obj instanceof Boolean) {
+				return obj.toString();
+			} else {
+				return "\"" + escapeJSON(obj.toString()) + "\"";
+			}
+		} catch (Exception e) {
+			cfEngine.log("[WebSocket] Error serializing to JSON: " + e.getMessage());
+			return "null";
+		}
+	}
+
+	/**
+	 * Escape JSON string
+	 */
+	private String escapeJSON(String str) {
+		if (str == null) return "";
+		return str.replace("\\", "\\\\")
+		          .replace("\"", "\\\"")
+		          .replace("\n", "\\n")
+		          .replace("\r", "\\r")
+		          .replace("\t", "\\t");
 	}
 
 	/**
@@ -210,11 +414,11 @@ public class WebSocketChannelHandler extends SimpleChannelInboundHandler<WebSock
 	 */
 	private void handleClose() {
 		if (connection != null) {
+			// Unsubscribe from all channels
+			WebSocketChannelManager manager = WebSocketChannelManager.getInstance();
+			manager.unsubscribeAll(connection);
+
 			connection.close();
-
-			// TODO Phase 2: Unsubscribe from all channels
-			// TODO Phase 2: Remove from connection manager
-
 			connection = null;
 		}
 

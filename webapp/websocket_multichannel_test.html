@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>WebSocket Multi-Channel Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .connected { background-color: #d4edda; color: #155724; }
+        .disconnected { background-color: #f8d7da; color: #721c24; }
+
+        .channel-section {
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .channel-test { background-color: #e3f2fd; border-color: #2196F3; }
+        .channel-chat { background-color: #f3e5f5; border-color: #9C27B0; }
+        .channel-notify { background-color: #fff3e0; border-color: #FF9800; }
+
+        .channel-section h3 {
+            margin-top: 0;
+        }
+        .channel-test h3 { color: #2196F3; }
+        .channel-chat h3 { color: #9C27B0; }
+        .channel-notify h3 { color: #FF9800; }
+
+        .subscribed {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        .subscribed.yes { background-color: #4CAF50; color: white; }
+        .subscribed.no { background-color: #f44336; color: white; }
+
+        .messages {
+            border: 1px solid #ccc;
+            height: 150px;
+            overflow-y: scroll;
+            padding: 10px;
+            margin: 10px 0;
+            background-color: white;
+            font-size: 13px;
+        }
+        .message {
+            padding: 5px;
+            margin: 3px 0;
+            border-left: 3px solid #007bff;
+            background-color: #f8f9fa;
+        }
+        .message.test { border-left-color: #2196F3; }
+        .message.chat { border-left-color: #9C27B0; }
+        .message.notify { border-left-color: #FF9800; }
+        .message.error { border-left-color: #dc3545; background-color: #fff5f5; }
+
+        button {
+            padding: 8px 15px;
+            margin: 3px;
+            font-size: 13px;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            color: white;
+        }
+        button.primary { background-color: #007bff; }
+        button.primary:hover { background-color: #0056b3; }
+        button.success { background-color: #28a745; }
+        button.success:hover { background-color: #218838; }
+        button.danger { background-color: #dc3545; }
+        button.danger:hover { background-color: #c82333; }
+        button.secondary { background-color: #6c757d; }
+        button.secondary:hover { background-color: #5a6268; }
+
+        input[type="text"] {
+            padding: 8px;
+            width: 250px;
+            font-size: 13px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .controls {
+            margin: 15px 0;
+        }
+        .test-scenarios {
+            background-color: #fff9c4;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .test-scenarios h3 {
+            margin-top: 0;
+            color: #f57f17;
+        }
+        .test-scenarios ol {
+            margin: 10px 0;
+        }
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin: 15px 0;
+        }
+        .stat-box {
+            flex: 1;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .stat-box .label {
+            font-size: 12px;
+            color: #6c757d;
+        }
+        .stat-box .value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Multi-Channel Test</h1>
+
+    <div id="status" class="status disconnected">Disconnected</div>
+
+    <div class="controls">
+        <button class="primary" onclick="connect()">Connect</button>
+        <button class="danger" onclick="disconnect()">Disconnect</button>
+        <button class="secondary" onclick="subscribeAll()">Subscribe to All Channels</button>
+        <button class="secondary" onclick="unsubscribeAll()">Unsubscribe from All</button>
+        <button class="secondary" onclick="clearAllMessages()">Clear All Messages</button>
+    </div>
+
+    <div class="stats">
+        <div class="stat-box">
+            <div class="label">Client ID</div>
+            <div class="value" id="clientIdDisplay" style="font-size: 16px;">-</div>
+        </div>
+        <div class="stat-box">
+            <div class="label">Test Channel</div>
+            <div class="value" id="testCount">0</div>
+        </div>
+        <div class="stat-box">
+            <div class="label">Chat Channel</div>
+            <div class="value" id="chatCount">0</div>
+        </div>
+        <div class="stat-box">
+            <div class="label">Notify Channel</div>
+            <div class="value" id="notifyCount">0</div>
+        </div>
+    </div>
+
+    <!-- Test Channel -->
+    <div class="channel-section channel-test">
+        <h3>
+            Test Channel
+            <span class="subscribed no" id="testSubscribed">NOT SUBSCRIBED</span>
+        </h3>
+        <div class="controls">
+            <button class="success" onclick="subscribe('testChannel')">Subscribe</button>
+            <button class="danger" onclick="unsubscribe('testChannel')">Unsubscribe</button>
+            <input type="text" id="testInput" placeholder="Enter message for testChannel...">
+            <button class="primary" onclick="publish('testChannel', 'testInput')">Publish</button>
+            <button class="secondary" onclick="clearMessages('test')">Clear</button>
+        </div>
+        <div class="messages" id="testMessages"></div>
+    </div>
+
+    <!-- Chat Channel -->
+    <div class="channel-section channel-chat">
+        <h3>
+            Chat Channel
+            <span class="subscribed no" id="chatSubscribed">NOT SUBSCRIBED</span>
+        </h3>
+        <div class="controls">
+            <button class="success" onclick="subscribe('chatChannel')">Subscribe</button>
+            <button class="danger" onclick="unsubscribe('chatChannel')">Unsubscribe</button>
+            <input type="text" id="chatInput" placeholder="Enter message for chatChannel...">
+            <button class="primary" onclick="publish('chatChannel', 'chatInput')">Publish</button>
+            <button class="secondary" onclick="clearMessages('chat')">Clear</button>
+        </div>
+        <div class="messages" id="chatMessages"></div>
+    </div>
+
+    <!-- Notify Channel -->
+    <div class="channel-section channel-notify">
+        <h3>
+            Notify Channel
+            <span class="subscribed no" id="notifySubscribed">NOT SUBSCRIBED</span>
+        </h3>
+        <div class="controls">
+            <button class="success" onclick="subscribe('notifyChannel')">Subscribe</button>
+            <button class="danger" onclick="unsubscribe('notifyChannel')">Unsubscribe</button>
+            <input type="text" id="notifyInput" placeholder="Enter message for notifyChannel...">
+            <button class="primary" onclick="publish('notifyChannel', 'notifyInput')">Publish</button>
+            <button class="secondary" onclick="clearMessages('notify')">Clear</button>
+        </div>
+        <div class="messages" id="notifyMessages"></div>
+    </div>
+
+    <!-- Test Scenarios -->
+    <div class="test-scenarios">
+        <h3>🧪 Test Scenarios for Message Isolation</h3>
+        <ol>
+            <li><strong>Channel Isolation Test:</strong>
+                <ul>
+                    <li>Subscribe to ONLY testChannel in Tab 1</li>
+                    <li>Subscribe to ONLY chatChannel in Tab 2</li>
+                    <li>Publish to testChannel - should only appear in Tab 1</li>
+                    <li>Publish to chatChannel - should only appear in Tab 2</li>
+                </ul>
+            </li>
+            <li><strong>Multi-Channel Subscription:</strong>
+                <ul>
+                    <li>Subscribe to ALL channels in Tab 1</li>
+                    <li>Subscribe to ONLY testChannel in Tab 2</li>
+                    <li>Publish to each channel - Tab 1 should see all, Tab 2 only testChannel</li>
+                </ul>
+            </li>
+            <li><strong>Dynamic Unsubscribe:</strong>
+                <ul>
+                    <li>Subscribe to all channels</li>
+                    <li>Unsubscribe from chatChannel</li>
+                    <li>Publish to chatChannel - should NOT receive</li>
+                    <li>Publish to testChannel - should still receive</li>
+                </ul>
+            </li>
+            <li><strong>Multi-Tab Broadcast:</strong>
+                <ul>
+                    <li>Open 3 tabs, subscribe all to testChannel</li>
+                    <li>Publish from Tab 1 - all 3 should receive</li>
+                    <li>Verify each tab shows sender's client ID</li>
+                </ul>
+            </li>
+        </ol>
+    </div>
+
+    <script>
+        var ws = null;
+        var clientId = 'client-' + Math.random().toString(36).substr(2, 9);
+        var subscriptions = {
+            testChannel: false,
+            chatChannel: false,
+            notifyChannel: false
+        };
+        var messageCounts = {
+            test: 0,
+            chat: 0,
+            notify: 0
+        };
+
+        // Update client ID display
+        document.getElementById('clientIdDisplay').textContent = clientId;
+
+        function addMessage(channel, text, isError) {
+            var channelType = channel.replace('Channel', '');
+            var messagesDiv = document.getElementById(channelType + 'Messages');
+
+            var div = document.createElement('div');
+            div.className = isError ? 'message error' : 'message ' + channelType;
+            div.textContent = new Date().toLocaleTimeString() + ' - ' + text;
+            messagesDiv.appendChild(div);
+            div.scrollIntoView();
+
+            if (!isError && channel !== 'system') {
+                messageCounts[channelType]++;
+                document.getElementById(channelType + 'Count').textContent = messageCounts[channelType];
+            }
+        }
+
+        function updateStatus(text, cssClass) {
+            var status = document.getElementById('status');
+            status.textContent = text;
+            status.className = 'status ' + cssClass;
+        }
+
+        function updateSubscriptionStatus(channel, subscribed) {
+            subscriptions[channel] = subscribed;
+            var channelType = channel.replace('Channel', '');
+            var elem = document.getElementById(channelType + 'Subscribed');
+            elem.textContent = subscribed ? 'SUBSCRIBED' : 'NOT SUBSCRIBED';
+            elem.className = 'subscribed ' + (subscribed ? 'yes' : 'no');
+        }
+
+        function connect() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                alert('Already connected!');
+                return;
+            }
+
+            ws = new WebSocket('ws://localhost:8580/openbd/ws');
+
+            ws.onopen = function() {
+                updateStatus('Connected (Client: ' + clientId + ')', 'connected');
+                addMessage('system', '✅ Connected! Client ID: ' + clientId);
+            };
+
+            ws.onmessage = function(evt) {
+                try {
+                    var msg = JSON.parse(evt.data);
+                    handleMessage(msg);
+                } catch (e) {
+                    addMessage('system', '❌ Error parsing message: ' + e.message, true);
+                }
+            };
+
+            ws.onerror = function(evt) {
+                addMessage('system', '❌ WebSocket error occurred', true);
+                updateStatus('Error', 'disconnected');
+            };
+
+            ws.onclose = function() {
+                addMessage('system', '🔌 Disconnected');
+                updateStatus('Disconnected', 'disconnected');
+                ws = null;
+
+                // Reset all subscription statuses
+                Object.keys(subscriptions).forEach(function(channel) {
+                    updateSubscriptionStatus(channel, false);
+                });
+            };
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+
+        function subscribe(channelName) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('Not connected! Click Connect first.');
+                return;
+            }
+
+            var msg = {
+                type: 'subscribe',
+                channelName: channelName,
+                subscriberInfo: {
+                    clientId: clientId,
+                    timestamp: new Date().toISOString()
+                }
+            };
+
+            ws.send(JSON.stringify(msg));
+            addMessage(channelName, '📤 Sending subscribe request...');
+        }
+
+        function unsubscribe(channelName) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('Not connected!');
+                return;
+            }
+
+            var msg = {
+                type: 'unsubscribe',
+                channelName: channelName
+            };
+
+            ws.send(JSON.stringify(msg));
+            addMessage(channelName, '📤 Sending unsubscribe request...');
+        }
+
+        function publish(channelName, inputId) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('Not connected!');
+                return;
+            }
+
+            if (!subscriptions[channelName]) {
+                alert('You are not subscribed to ' + channelName + '! Subscribe first.');
+                return;
+            }
+
+            var text = document.getElementById(inputId).value;
+            if (!text) {
+                alert('Enter a message first!');
+                return;
+            }
+
+            var msg = {
+                type: 'publish',
+                channelName: channelName,
+                message: {
+                    text: text,
+                    from: clientId,
+                    timestamp: new Date().toISOString()
+                }
+            };
+
+            ws.send(JSON.stringify(msg));
+            addMessage(channelName, '📤 Publishing: "' + text + '"');
+
+            // Clear input
+            document.getElementById(inputId).value = '';
+        }
+
+        function subscribeAll() {
+            subscribe('testChannel');
+            subscribe('chatChannel');
+            subscribe('notifyChannel');
+        }
+
+        function unsubscribeAll() {
+            unsubscribe('testChannel');
+            unsubscribe('chatChannel');
+            unsubscribe('notifyChannel');
+        }
+
+        function handleMessage(msg) {
+            switch (msg.type) {
+                case 'subscribed':
+                    addMessage(msg.channelName, '✅ Subscribed successfully');
+                    updateSubscriptionStatus(msg.channelName, true);
+                    break;
+
+                case 'unsubscribed':
+                    addMessage(msg.channelName, '🔕 Unsubscribed successfully');
+                    updateSubscriptionStatus(msg.channelName, false);
+                    break;
+
+                case 'message':
+                    var fromText = msg.message.from === clientId ? 'YOU' : msg.message.from;
+                    addMessage(msg.channelName,
+                              '📩 From ' + fromText + ': ' + msg.message.text);
+                    break;
+
+                case 'error':
+                    addMessage('system', '❌ ERROR: ' + msg.message, true);
+                    break;
+
+                default:
+                    addMessage('system', '❓ Unknown message type: ' + msg.type, true);
+            }
+        }
+
+        function clearMessages(channelType) {
+            document.getElementById(channelType + 'Messages').innerHTML = '';
+            messageCounts[channelType] = 0;
+            document.getElementById(channelType + 'Count').textContent = '0';
+        }
+
+        function clearAllMessages() {
+            clearMessages('test');
+            clearMessages('chat');
+            clearMessages('notify');
+        }
+
+        // Handle enter key in inputs
+        document.addEventListener('DOMContentLoaded', function() {
+            ['testInput', 'chatInput', 'notifyInput'].forEach(function(inputId) {
+                document.getElementById(inputId).addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        var channel = inputId.replace('Input', 'Channel');
+                        publish(channel, inputId);
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

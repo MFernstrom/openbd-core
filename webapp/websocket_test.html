@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>WebSocket Phase 2 Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .connected { background-color: #d4edda; color: #155724; }
+        .disconnected { background-color: #f8d7da; color: #721c24; }
+        .subscribed { background-color: #d1ecf1; color: #0c5460; }
+        #messages {
+            border: 1px solid #ccc;
+            height: 300px;
+            overflow-y: scroll;
+            padding: 10px;
+            margin: 10px 0;
+            background-color: #f8f9fa;
+        }
+        .message {
+            padding: 5px;
+            margin: 5px 0;
+            border-left: 3px solid #007bff;
+            background-color: white;
+        }
+        .error {
+            border-left-color: #dc3545;
+            background-color: #fff5f5;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        input[type="text"] {
+            padding: 8px;
+            width: 300px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Phase 2 Test</h1>
+
+    <div id="status" class="status disconnected">Disconnected</div>
+
+    <h2>Controls</h2>
+    <button onclick="connect()">Connect</button>
+    <button onclick="disconnect()">Disconnect</button>
+    <button onclick="subscribe()">Subscribe to testChannel</button>
+    <button onclick="unsubscribe()">Unsubscribe from testChannel</button>
+    <br><br>
+    <input type="text" id="messageInput" placeholder="Enter message...">
+    <button onclick="publishMessage()">Publish Message</button>
+    <button onclick="clearMessages()">Clear Messages</button>
+
+    <h2>Messages</h2>
+    <div id="messages"></div>
+
+    <h2>Instructions</h2>
+    <ol>
+        <li>Open this page in multiple browser tabs/windows</li>
+        <li>Click "Connect" in each tab</li>
+        <li>Click "Subscribe to testChannel" in each tab</li>
+        <li>Type a message and click "Publish Message" in one tab</li>
+        <li>You should see the message appear in ALL tabs!</li>
+    </ol>
+
+    <script>
+        var ws = null;
+        var clientId = 'client-' + Math.random().toString(36).substr(2, 9);
+
+        function addMessage(text, isError) {
+            var div = document.createElement('div');
+            div.className = isError ? 'message error' : 'message';
+            div.textContent = new Date().toLocaleTimeString() + ' - ' + text;
+            document.getElementById('messages').appendChild(div);
+            div.scrollIntoView();
+        }
+
+        function updateStatus(text, cssClass) {
+            var status = document.getElementById('status');
+            status.textContent = text;
+            status.className = 'status ' + cssClass;
+        }
+
+        function connect() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                addMessage('Already connected', true);
+                return;
+            }
+
+            addMessage('Connecting to ws://localhost:8580/openbd/ws...');
+            ws = new WebSocket('ws://localhost:8580/openbd/ws');
+
+            ws.onopen = function() {
+                addMessage('Connected! Client ID: ' + clientId);
+                updateStatus('Connected (Client: ' + clientId + ')', 'connected');
+            };
+
+            ws.onmessage = function(evt) {
+                try {
+                    var msg = JSON.parse(evt.data);
+                    handleMessage(msg);
+                } catch (e) {
+                    addMessage('Error parsing message: ' + e.message, true);
+                }
+            };
+
+            ws.onerror = function(evt) {
+                addMessage('WebSocket error occurred', true);
+                updateStatus('Error', 'disconnected');
+            };
+
+            ws.onclose = function() {
+                addMessage('Disconnected');
+                updateStatus('Disconnected', 'disconnected');
+                ws = null;
+            };
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+
+        function subscribe() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                addMessage('Not connected! Click Connect first.', true);
+                return;
+            }
+
+            var msg = {
+                type: 'subscribe',
+                channelName: 'testChannel',
+                subscriberInfo: {
+                    clientId: clientId,
+                    timestamp: new Date().toISOString()
+                }
+            };
+
+            addMessage('Sending subscribe request...');
+            ws.send(JSON.stringify(msg));
+        }
+
+        function unsubscribe() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                addMessage('Not connected!', true);
+                return;
+            }
+
+            var msg = {
+                type: 'unsubscribe',
+                channelName: 'testChannel'
+            };
+
+            addMessage('Sending unsubscribe request...');
+            ws.send(JSON.stringify(msg));
+        }
+
+        function publishMessage() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                addMessage('Not connected!', true);
+                return;
+            }
+
+            var text = document.getElementById('messageInput').value;
+            if (!text) {
+                addMessage('Enter a message first!', true);
+                return;
+            }
+
+            var msg = {
+                type: 'publish',
+                channelName: 'testChannel',
+                message: {
+                    text: text,
+                    from: clientId,
+                    timestamp: new Date().toISOString()
+                }
+            };
+
+            addMessage('Publishing message to testChannel...');
+            ws.send(JSON.stringify(msg));
+
+            // Clear input
+            document.getElementById('messageInput').value = '';
+        }
+
+        function handleMessage(msg) {
+            switch (msg.type) {
+                case 'subscribed':
+                    addMessage('✓ Subscribed to: ' + msg.channelName);
+                    updateStatus('Subscribed to ' + msg.channelName, 'subscribed');
+                    break;
+
+                case 'unsubscribed':
+                    addMessage('✓ Unsubscribed from: ' + msg.channelName);
+                    updateStatus('Connected (Client: ' + clientId + ')', 'connected');
+                    break;
+
+                case 'message':
+                    addMessage('📩 [' + msg.channelName + '] From ' +
+                             (msg.message.from || 'unknown') + ': ' + msg.message.text);
+                    break;
+
+                case 'error':
+                    addMessage('❌ ERROR: ' + msg.message, true);
+                    break;
+
+                default:
+                    addMessage('Unknown message type: ' + msg.type, true);
+            }
+        }
+
+        function clearMessages() {
+            document.getElementById('messages').innerHTML = '';
+        }
+
+        // Auto-connect on page load (optional - comment out if not wanted)
+        // window.onload = connect;
+
+        // Handle enter key in message input
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('messageInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    publishMessage();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

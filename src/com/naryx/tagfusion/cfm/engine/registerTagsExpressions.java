@@ -615,6 +615,9 @@ public class registerTagsExpressions extends java.lang.Object {
 
 		functions.put( "jsonfileread", 								"com.naryx.tagfusion.expression.function.string.JsonFileRead" );
 
+		// WebSocket functions
+		functions.put( "wsregisterchannel", 					"com.naryx.tagfusion.expression.function.websocket.wsRegisterChannel" );
+
 		cfEngine.thisPlatform.registerFunctions(functions);
   }
 }
