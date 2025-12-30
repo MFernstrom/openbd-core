@@ -44,6 +44,7 @@ import com.naryx.tagfusion.cfm.engine.cfStringData;
 import com.naryx.tagfusion.cfm.engine.cfStructData;
 import com.naryx.tagfusion.cfm.engine.cfcMethodData;
 import com.naryx.tagfusion.cfm.engine.cfmRunTimeException;
+import com.naryx.tagfusion.expression.function.string.serializejson;
 import com.naryx.tagfusion.util.dummyServletRequest;
 import com.naryx.tagfusion.util.dummyServletResponse;
 
@@ -292,15 +293,16 @@ public class WebSocketChannelManager {
 	 * Publish a message to a channel
 	 *
 	 * Phase 2: Simple broadcast to all subscribers
-	 * Phase 3: Will invoke CFC hooks (allowPublish, beforePublish, canSendMessage)
+	 * Phase 3: Invokes CFC hooks (allowPublish, beforePublish, canSendMessage)
 	 *
 	 * @param channelName the channel to publish to
-	 * @param message the message to publish (JSON string)
-	 * @return true if published, false if channel doesn't exist
+	 * @param publisher the connection publishing the message
+	 * @param messageData the raw message data (before JSON formatting)
+	 * @return true if published, false if channel doesn't exist or publish denied
 	 */
-	public boolean publish(String channelName, String message) {
-		if (channelName == null || message == null) {
-			cfEngine.log("[WebSocket] Cannot publish: channel or message is null");
+	public boolean publish(String channelName, WebSocketConnection publisher, Object messageData) {
+		if (channelName == null || publisher == null || messageData == null) {
+			cfEngine.log("[WebSocket] Cannot publish: channel, publisher, or message is null");
 			return false;
 		}
 
@@ -310,8 +312,127 @@ public class WebSocketChannelManager {
 			return false;
 		}
 
-		channel.publish(message);
+		// Phase 3: Invoke CFC hooks if listener is attached
+		Object finalMessageData = messageData;
+
+		if (channel.hasListener()) {
+			try {
+				cfComponentData listenerCFC = channel.getListenerCFC();
+
+				// Create temporary session for CFC invocation
+				cfSession session = new cfSession(
+					new dummyServletRequest("/"),
+					new dummyServletResponse(),
+					cfEngine.thisServletContext
+				);
+
+				// Build publisherInfo struct
+				cfStructData publisherInfo = new cfStructData();
+				publisherInfo.setData("connectionId", publisher.getConnectionId());
+				publisherInfo.setData("subscriberInfo",
+					publisher.getSubscriberInfo() != null ? publisher.getSubscriberInfo() : new cfStructData());
+
+				// Hook 1: allowPublish(publisherInfo) - Authorization check
+				cfEngine.log("[WebSocket] Channel '" + channelName + "': Invoking allowPublish() hook");
+
+				cfArgStructData allowArgs = new cfArgStructData();
+				allowArgs.setData("publisherInfo", publisherInfo);
+
+				cfcMethodData allowMethod = new cfcMethodData(session, "allowPublish", allowArgs);
+				cfData allowResult = listenerCFC.invokeComponentFunction(session, allowMethod);
+
+				boolean allowed = true;
+				if (allowResult instanceof cfBooleanData) {
+					allowed = ((cfBooleanData) allowResult).getBoolean();
+				} else if (allowResult != null) {
+					String resultStr = allowResult.getString().toLowerCase();
+					allowed = resultStr.equals("true") || resultStr.equals("yes");
+				}
+
+				if (!allowed) {
+					cfEngine.log("[WebSocket] Channel '" + channelName + "': Publish denied by allowPublish() hook");
+					return false;
+				}
+
+				cfEngine.log("[WebSocket] Channel '" + channelName + "': Publish allowed by allowPublish() hook");
+
+				// Hook 2: beforePublish(publisherInfo, message) - Transform message
+				cfEngine.log("[WebSocket] Channel '" + channelName + "': Invoking beforePublish() hook");
+
+				cfArgStructData beforeArgs = new cfArgStructData();
+				beforeArgs.setData("publisherInfo", publisherInfo);
+				// Cast messageData to cfData (it should be cfStructData from the parsed JSON)
+				if (messageData instanceof cfData) {
+					beforeArgs.setData("message", (cfData) messageData);
+				} else {
+					// Fallback: wrap in cfStringData
+					beforeArgs.setData("message", new cfStringData(messageData.toString()));
+				}
+
+				cfcMethodData beforeMethod = new cfcMethodData(session, "beforePublish", beforeArgs);
+				cfData transformedMessage = listenerCFC.invokeComponentFunction(session, beforeMethod);
+
+				if (transformedMessage != null) {
+					finalMessageData = transformedMessage;
+					cfEngine.log("[WebSocket] Channel '" + channelName + "': Message transformed by beforePublish() hook");
+				}
+
+			} catch (Exception e) {
+				cfEngine.log("[WebSocket] ERROR invoking publish hooks: " + e.getMessage());
+				e.printStackTrace();
+				// On error, deny publish for safety
+				return false;
+			}
+		}
+
+		// Build final broadcast message with transformed data
+		String broadcastMessage = "{\"type\":\"message\",\"channelName\":\"" +
+		                         escapeJSON(channelName) + "\",\"message\":" +
+		                         serializeJSON(finalMessageData) + "}";
+
+		channel.publish(broadcastMessage);
 		return true;
+	}
+
+	/**
+	 * Escape special characters for JSON strings
+	 */
+	private String escapeJSON(String str) {
+		if (str == null) {
+			return "";
+		}
+		return str.replace("\\", "\\\\")
+		          .replace("\"", "\\\"")
+		          .replace("\n", "\\n")
+		          .replace("\r", "\\r")
+		          .replace("\t", "\\t");
+	}
+
+	/**
+	 * Serialize an object to JSON string
+	 */
+	private String serializeJSON(Object obj) {
+		try {
+			if (obj == null) {
+				return "null";
+			}
+
+			// If it's already a cfData type, serialize it properly
+			if (obj instanceof cfData) {
+				StringBuilder buffer = new StringBuilder();
+				serializejson serializer = new serializejson();
+				serializer.encodeJSON(buffer, (cfData)obj, false,
+				                     serializejson.CaseType.MAINTAIN,
+				                     serializejson.DateType.LONG);
+				return buffer.toString();
+			}
+
+			// Fallback for non-cfData types
+			return "\"" + escapeJSON(obj.toString()) + "\"";
+		} catch (Exception e) {
+			cfEngine.log("[WebSocket] JSON serialization error: " + e.getMessage());
+			return "\"\"";
+		}
 	}
 
 	/**

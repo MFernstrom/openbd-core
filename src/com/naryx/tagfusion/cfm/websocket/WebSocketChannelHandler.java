@@ -260,14 +260,9 @@ public class WebSocketChannelHandler extends SimpleChannelInboundHandler<WebSock
 			return;
 		}
 
-		// Build broadcast message in JSON format
-		String broadcastMessage = "{\"type\":\"message\",\"channelName\":\"" +
-		                         escapeJSON(channelName) + "\",\"message\":" +
-		                         serializeJSON(messageData) + "}";
-
-		// Publish via channel manager
+		// Publish via channel manager (hooks will be invoked inside)
 		WebSocketChannelManager manager = WebSocketChannelManager.getInstance();
-		boolean success = manager.publish(channelName, broadcastMessage);
+		boolean success = manager.publish(channelName, connection, messageData);
 
 		if (!success) {
 			sendError("Failed to publish to channel: " + channelName);
