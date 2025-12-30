@@ -4,43 +4,34 @@
 try {
 	writeOutput("<h2>Test: Create Authenticated Channel</h2>");
 
-	// Create the AuthChannelListener CFC
-	listener = CreateObject("component", "OPENBD.websocket.AuthChannelListener");
-	writeOutput("<p>✅ AuthChannelListener CFC loaded</p>");
+	// Register the channel with AuthChannelListener using the new wsRegisterChannel() API
+	result = wsRegisterChannel(
+		channelName: "authChannel",
+		listener: "OPENBD.websocket.AuthChannelListener"
+	);
 
-	// Get channel manager
-	channelManagerClass = CreateObject("java", "com.naryx.tagfusion.cfm.websocket.WebSocketChannelManager");
-	manager = channelManagerClass.getInstance();
+	if (result) {
+		writeOutput("<p>✅ Registered 'authChannel' with AuthChannelListener using wsRegisterChannel()</p>");
 
-	// Create a channel directly with the CFC
-	channelClass = CreateObject("java", "com.naryx.tagfusion.cfm.websocket.WebSocketChannel");
-	authChannel = channelClass.init("authChannel", listener);
-	writeOutput("<p>✅ Created channel 'authChannel' with AuthChannelListener</p>");
+		writeOutput("<hr>");
+		writeOutput("<h2 style='color: green;'>✅ Channel Registered Successfully!</h2>");
+		writeOutput("<p>The 'authChannel' is now active with authentication enabled.</p>");
+		writeOutput("<ul>");
+		writeOutput("<li>✅ allowSubscribe() hook will be invoked on subscription attempts</li>");
+		writeOutput("<li>✅ Valid authToken: <strong>SECRET123</strong></li>");
+		writeOutput("<li>✅ Invalid tokens will be rejected</li>");
+		writeOutput("</ul>");
 
-	// Manually register the channel with the manager
-	// Note: In Stage 6 we'll update wsRegisterChannel() to accept a listener parameter
-	manager.getChannels(); // Force manager initialization if needed
+		writeOutput("<h3>Next: Test the channel</h3>");
+		writeOutput("<p><a href='websocket_test_stage3.html'>Open Stage 3 Test Page</a></p>");
+	} else {
+		writeOutput("<h2 style='color: orange;'>⚠️ Channel Already Registered</h2>");
+		writeOutput("<p>The 'authChannel' already exists. This is normal if you've run this page before.</p>");
+		writeOutput("<p>The existing channel is still active and ready for testing.</p>");
 
-	// Access private channels map via reflection (temporary workaround for Stage 3)
-	// In Stage 6, we'll add a proper registerChannel(name, listener) method
-	channelsField = manager.getClass().getDeclaredField("channels");
-	channelsField.setAccessible(true);
-	channelsMap = channelsField.get(manager);
-	channelsMap.put("authChannel", authChannel);
-
-	writeOutput("<p>✅ Registered 'authChannel' with manager</p>");
-
-	writeOutput("<hr>");
-	writeOutput("<h2 style='color: green;'>✅ Channel Registered Successfully!</h2>");
-	writeOutput("<p>The 'authChannel' is now active with authentication enabled.</p>");
-	writeOutput("<ul>");
-	writeOutput("<li>✅ allowSubscribe() hook will be invoked on subscription attempts</li>");
-	writeOutput("<li>✅ Valid authToken: <strong>SECRET123</strong></li>");
-	writeOutput("<li>✅ Invalid tokens will be rejected</li>");
-	writeOutput("</ul>");
-
-	writeOutput("<h3>Next: Test the channel</h3>");
-	writeOutput("<p><a href='websocket_test_stage3.html'>Open Stage 3 Test Page</a></p>");
+		writeOutput("<h3>Next: Test the channel</h3>");
+		writeOutput("<p><a href='websocket_test_stage3.html'>Open Stage 3 Test Page</a></p>");
+	}
 
 } catch (any e) {
 	writeOutput("<h2 style='color: red;'>❌ Error!</h2>");

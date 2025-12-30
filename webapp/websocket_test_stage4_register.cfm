@@ -4,38 +4,34 @@
 try {
 	writeOutput("<h2>Test: Create Moderated Channel</h2>");
 
-	// Create the ModeratedChannelListener CFC
-	listener = CreateObject("component", "OPENBD.websocket.ModeratedChannelListener");
-	writeOutput("<p>✅ ModeratedChannelListener CFC loaded</p>");
+	// Register the channel with ModeratedChannelListener using the new wsRegisterChannel() API
+	result = wsRegisterChannel(
+		channelName: "moderatedChannel",
+		listener: "OPENBD.websocket.ModeratedChannelListener"
+	);
 
-	// Get channel manager
-	channelManagerClass = CreateObject("java", "com.naryx.tagfusion.cfm.websocket.WebSocketChannelManager");
-	manager = channelManagerClass.getInstance();
+	if (result) {
+		writeOutput("<p>✅ Registered 'moderatedChannel' with ModeratedChannelListener using wsRegisterChannel()</p>");
 
-	// Create a channel directly with the CFC
-	channelClass = CreateObject("java", "com.naryx.tagfusion.cfm.websocket.WebSocketChannel");
-	moderatedChannel = channelClass.init("moderatedChannel", listener);
-	writeOutput("<p>✅ Created channel 'moderatedChannel' with ModeratedChannelListener</p>");
+		writeOutput("<hr>");
+		writeOutput("<h2 style='color: green;'>✅ Channel Registered Successfully!</h2>");
+		writeOutput("<p>The 'moderatedChannel' is now active with publish moderation enabled.</p>");
+		writeOutput("<ul>");
+		writeOutput("<li>✅ allowPublish() hook will check if user has 'moderator' role</li>");
+		writeOutput("<li>✅ beforePublish() hook will add timestamps and sanitize content</li>");
+		writeOutput("<li>✅ Non-moderators will not be able to publish messages</li>");
+		writeOutput("</ul>");
 
-	// Manually register the channel with the manager (using reflection)
-	channelsField = manager.getClass().getDeclaredField("channels");
-	channelsField.setAccessible(true);
-	channelsMap = channelsField.get(manager);
-	channelsMap.put("moderatedChannel", moderatedChannel);
+		writeOutput("<h3>Next: Test the channel</h3>");
+		writeOutput("<p><a href='websocket_test_stage4.html'>Open Stage 4 Test Page</a></p>");
+	} else {
+		writeOutput("<h2 style='color: orange;'>⚠️ Channel Already Registered</h2>");
+		writeOutput("<p>The 'moderatedChannel' already exists. This is normal if you've run this page before.</p>");
+		writeOutput("<p>The existing channel is still active and ready for testing.</p>");
 
-	writeOutput("<p>✅ Registered 'moderatedChannel' with manager</p>");
-
-	writeOutput("<hr>");
-	writeOutput("<h2 style='color: green;'>✅ Channel Registered Successfully!</h2>");
-	writeOutput("<p>The 'moderatedChannel' is now active with publish moderation enabled.</p>");
-	writeOutput("<ul>");
-	writeOutput("<li>✅ allowPublish() hook will check if user has 'moderator' role</li>");
-	writeOutput("<li>✅ beforePublish() hook will add timestamps and sanitize content</li>");
-	writeOutput("<li>✅ Non-moderators will not be able to publish messages</li>");
-	writeOutput("</ul>");
-
-	writeOutput("<h3>Next: Test the channel</h3>");
-	writeOutput("<p><a href='websocket_test_stage4.html'>Open Stage 4 Test Page</a></p>");
+		writeOutput("<h3>Next: Test the channel</h3>");
+		writeOutput("<p><a href='websocket_test_stage4.html'>Open Stage 4 Test Page</a></p>");
+	}
 
 } catch (any e) {
 	writeOutput("<h2 style='color: red;'>❌ Error!</h2>");

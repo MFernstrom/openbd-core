@@ -28,8 +28,10 @@
  */
 package com.naryx.tagfusion.expression.function.websocket;
 
+import com.naryx.tagfusion.cfm.engine.catchDataFactory;
 import com.naryx.tagfusion.cfm.engine.cfArgStructData;
 import com.naryx.tagfusion.cfm.engine.cfBooleanData;
+import com.naryx.tagfusion.cfm.engine.cfComponentData;
 import com.naryx.tagfusion.cfm.engine.cfData;
 import com.naryx.tagfusion.cfm.engine.cfSession;
 import com.naryx.tagfusion.cfm.engine.cfmRunTimeException;
@@ -81,22 +83,77 @@ public class wsRegisterChannel extends functionBase {
 			throwException(_session, "channelName is required");
 		}
 
-		// Get optional listener (Phase 3 - not used yet)
+		// Get optional listener CFC path (Phase 3)
 		String listenerPath = getNamedStringParam(argStruct, "listener", null);
 
-		// Phase 2: listener parameter is ignored
-		// Phase 3: Will load and register the CFC
-		if (listenerPath != null && !listenerPath.isEmpty()) {
-			// Log that this will be supported in Phase 3
-			com.naryx.tagfusion.cfm.engine.cfEngine.log(
-				"[WebSocket] wsRegisterChannel: listener parameter not yet supported (Phase 3 feature)"
-			);
+		WebSocketChannelManager manager = WebSocketChannelManager.getInstance();
+		boolean success;
+
+		// Phase 3: Load and register with listener CFC if specified
+		if (listenerPath != null && !listenerPath.trim().isEmpty()) {
+			try {
+				// Load the listener CFC
+				cfComponentData listenerCFC = loadListenerCFC(_session, listenerPath.trim());
+
+				// Register channel with listener
+				success = manager.registerChannel(channelName.trim(), listenerCFC);
+
+				com.naryx.tagfusion.cfm.engine.cfEngine.log(
+					"[WebSocket] wsRegisterChannel: Registered '" + channelName.trim() +
+					"' with listener CFC: " + listenerPath.trim()
+				);
+
+			} catch (cfmRunTimeException e) {
+				// Re-throw CFC loading errors
+				throw e;
+			} catch (Exception e) {
+				throwException(_session,
+					"Failed to load listener CFC '" + listenerPath.trim() + "': " + e.getMessage()
+				);
+				return cfBooleanData.FALSE;
+			}
+		} else {
+			// Register channel without listener (backwards compatible)
+			success = manager.registerChannel(channelName.trim());
 		}
 
-		// Register the channel
-		WebSocketChannelManager manager = WebSocketChannelManager.getInstance();
-		boolean success = manager.registerChannel(channelName.trim());
-
 		return cfBooleanData.getcfBooleanData(success);
+	}
+
+	/**
+	 * Load a Channel Listener CFC from the specified path
+	 *
+	 * @param session the current session
+	 * @param cfcPath the CFC path (e.g., "OPENBD.websocket.AuthChannelListener")
+	 * @return the loaded CFC instance
+	 * @throws cfmRunTimeException if CFC cannot be loaded or is invalid
+	 */
+	private cfComponentData loadListenerCFC(cfSession session, String cfcPath) throws cfmRunTimeException {
+		try {
+			// Load the CFC using the cfComponentData constructor
+			cfComponentData listenerCFC = new cfComponentData(session, cfcPath);
+
+			// Verify it extends ChannelListener (optional validation)
+			// We could check the component metadata here if needed
+
+			com.naryx.tagfusion.cfm.engine.cfEngine.log(
+				"[WebSocket] Successfully loaded listener CFC: " + cfcPath
+			);
+
+			return listenerCFC;
+
+		} catch (cfmRunTimeException e) {
+			// Re-throw runtime exceptions
+			throw e;
+		} catch (Exception e) {
+			// Wrap other exceptions
+			throw new cfmRunTimeException(
+				catchDataFactory.generalException(
+					"websocket.cfcLoadError",
+					"Failed to load listener CFC '" + cfcPath + "': " + e.getMessage(),
+					null
+				)
+			);
+		}
 	}
 }

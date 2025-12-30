@@ -87,15 +87,28 @@ public class WebSocketChannelManager {
 	}
 
 	/**
-	 * Register a new channel
+	 * Register a new channel without a listener CFC
 	 *
 	 * Phase 2: Simple channel creation
-	 * Phase 3: Will accept Channel Listener CFC path
+	 * Phase 3: Backwards compatible - calls overloaded method with null listener
 	 *
 	 * @param channelName the name of the channel to register
 	 * @return true if created, false if already exists
 	 */
 	public boolean registerChannel(String channelName) {
+		return registerChannel(channelName, null);
+	}
+
+	/**
+	 * Register a new channel with an optional listener CFC
+	 *
+	 * Phase 3: Channel creation with CFC listener support
+	 *
+	 * @param channelName the name of the channel to register
+	 * @param listenerCFC the Channel Listener CFC (can be null)
+	 * @return true if created, false if already exists
+	 */
+	public boolean registerChannel(String channelName, cfComponentData listenerCFC) {
 		if (channelName == null || channelName.trim().isEmpty()) {
 			cfEngine.log("[WebSocket] Cannot register channel: name is null or empty");
 			return false;
@@ -109,11 +122,17 @@ public class WebSocketChannelManager {
 			return false;
 		}
 
-		WebSocketChannel newChannel = new WebSocketChannel(channelName);
+		// Create channel with optional listener
+		WebSocketChannel newChannel = new WebSocketChannel(channelName, listenerCFC);
 		channels.put(channelName, newChannel);
 
-		cfEngine.log("[WebSocket] Channel '" + channelName + "' registered successfully " +
-		             "(total channels: " + channels.size() + ")");
+		if (listenerCFC != null) {
+			cfEngine.log("[WebSocket] Channel '" + channelName + "' registered successfully with listener CFC " +
+			             "(total channels: " + channels.size() + ")");
+		} else {
+			cfEngine.log("[WebSocket] Channel '" + channelName + "' registered successfully " +
+			             "(total channels: " + channels.size() + ")");
+		}
 
 		return true;
 	}
