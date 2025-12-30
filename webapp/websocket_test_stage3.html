@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Stage 3: allowSubscribe() Hook Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .connected { background-color: #d4edda; color: #155724; }
+        .disconnected { background-color: #f8d7da; color: #721c24; }
+        .messages {
+            border: 1px solid #ccc;
+            height: 300px;
+            overflow-y: scroll;
+            padding: 10px;
+            margin: 10px 0;
+            background-color: #f8f9fa;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        .message {
+            padding: 5px;
+            margin: 3px 0;
+            border-left: 3px solid #007bff;
+            background-color: white;
+        }
+        .message.success { border-left-color: #28a745; background-color: #d4edda; }
+        .message.error { border-left-color: #dc3545; background-color: #f8d7da; }
+        .message.info { border-left-color: #17a2b8; }
+        button {
+            padding: 8px 15px;
+            margin: 3px;
+            font-size: 13px;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            color: white;
+        }
+        button.primary { background-color: #007bff; }
+        button.primary:hover { background-color: #0056b3; }
+        button.success { background-color: #28a745; }
+        button.success:hover { background-color: #218838; }
+        button.danger { background-color: #dc3545; }
+        button.danger:hover { background-color: #c82333; }
+        button.warning { background-color: #ffc107; color: #000; }
+        button.warning:hover { background-color: #e0a800; }
+        .test-box {
+            background-color: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .test-box h3 {
+            margin-top: 0;
+            color: #856404;
+        }
+        input[type="text"] {
+            padding: 8px;
+            width: 300px;
+            font-size: 13px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Stage 3: allowSubscribe() Hook Test</h1>
+
+    <p>This test demonstrates the <code>allowSubscribe()</code> CFC hook that controls channel subscription.</p>
+    <p>The <strong>authChannel</strong> requires a valid authentication token to subscribe.</p>
+
+    <div id="status" class="status disconnected">Disconnected</div>
+
+    <div>
+        <button class="primary" onclick="connect()">Connect</button>
+        <button class="danger" onclick="disconnect()">Disconnect</button>
+        <button class="warning" onclick="clearMessages()">Clear Messages</button>
+    </div>
+
+    <div class="messages" id="messages"></div>
+
+    <!-- Test Scenarios -->
+    <div class="test-box">
+        <h3>Test 1: Subscribe WITHOUT Auth Token (Should Fail)</h3>
+        <p>This subscription attempt will be rejected because no authToken is provided.</p>
+        <button class="danger" onclick="subscribeNoToken()">Subscribe Without Token</button>
+    </div>
+
+    <div class="test-box">
+        <h3>Test 2: Subscribe WITH Invalid Token (Should Fail)</h3>
+        <p>Try to subscribe with an invalid token. Only "SECRET123" is accepted.</p>
+        <input type="text" id="invalidToken" value="WRONG_TOKEN" placeholder="Enter invalid token">
+        <button class="danger" onclick="subscribeInvalidToken()">Subscribe With Invalid Token</button>
+    </div>
+
+    <div class="test-box">
+        <h3>Test 3: Subscribe WITH Valid Token (Should Succeed)</h3>
+        <p>Subscribe with the correct token: <strong>SECRET123</strong></p>
+        <button class="success" onclick="subscribeValidToken()">Subscribe With Valid Token (SECRET123)</button>
+    </div>
+
+    <div class="test-box">
+        <h3>Test 4: Custom Token Test</h3>
+        <p>Try your own token:</p>
+        <input type="text" id="customToken" placeholder="Enter custom token">
+        <button class="primary" onclick="subscribeCustomToken()">Subscribe With Custom Token</button>
+    </div>
+
+    <hr>
+    <h3>Expected Results:</h3>
+    <ul>
+        <li>❌ Test 1 should FAIL (no token provided)</li>
+        <li>❌ Test 2 should FAIL (invalid token)</li>
+        <li>✅ Test 3 should SUCCEED (valid token: SECRET123)</li>
+        <li>❔ Test 4 depends on the token you enter</li>
+    </ul>
+
+    <p><strong>Note:</strong> Each successful subscription will automatically unsubscribe after 500ms to make tests independent and repeatable.</p>
+
+    <script>
+        var ws = null;
+        var clientId = 'client-' + Math.random().toString(36).substr(2, 9);
+
+        function addMessage(text, type) {
+            var messagesDiv = document.getElementById('messages');
+            var div = document.createElement('div');
+            div.className = 'message ' + (type || 'info');
+            div.textContent = new Date().toLocaleTimeString() + ' - ' + text;
+            messagesDiv.appendChild(div);
+            div.scrollIntoView();
+        }
+
+        function updateStatus(text, cssClass) {
+            var status = document.getElementById('status');
+            status.textContent = text;
+            status.className = 'status ' + cssClass;
+        }
+
+        function connect() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                alert('Already connected!');
+                return;
+            }
+
+            ws = new WebSocket('ws://localhost:8580/openbd/ws');
+
+            ws.onopen = function() {
+                updateStatus('Connected (Client: ' + clientId + ')', 'connected');
+                addMessage('✅ Connected! Client ID: ' + clientId, 'success');
+            };
+
+            ws.onmessage = function(evt) {
+                try {
+                    var msg = JSON.parse(evt.data);
+                    handleMessage(msg);
+                } catch (e) {
+                    addMessage('❌ Error parsing message: ' + e.message, 'error');
+                }
+            };
+
+            ws.onerror = function(evt) {
+                addMessage('❌ WebSocket error occurred', 'error');
+                updateStatus('Error', 'disconnected');
+            };
+
+            ws.onclose = function() {
+                addMessage('🔌 Disconnected', 'info');
+                updateStatus('Disconnected', 'disconnected');
+                ws = null;
+            };
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+
+        function handleMessage(msg) {
+            switch (msg.type) {
+                case 'subscribed':
+                    addMessage('✅ SUCCESS! Subscribed to ' + msg.channelName, 'success');
+
+                    // Auto-unsubscribe after successful test to make tests atomic
+                    setTimeout(function() {
+                        addMessage('🔄 Auto-unsubscribing to allow next test...', 'info');
+                        var unsubMsg = {
+                            type: 'unsubscribe',
+                            channelName: msg.channelName
+                        };
+                        ws.send(JSON.stringify(unsubMsg));
+                    }, 500);
+                    break;
+
+                case 'unsubscribed':
+                    addMessage('✅ Unsubscribed from ' + msg.channelName, 'info');
+                    break;
+
+                case 'error':
+                    addMessage('❌ ERROR: ' + msg.message, 'error');
+                    break;
+
+                default:
+                    addMessage('📩 ' + msg.type + ': ' + JSON.stringify(msg), 'info');
+            }
+        }
+
+        function subscribeNoToken() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('Not connected! Click Connect first.');
+                return;
+            }
+
+            var msg = {
+                type: 'subscribe',
+                channelName: 'authChannel',
+                subscriberInfo: {
+                    clientId: clientId
+                    // No authToken - should be rejected
+                }
+            };
+
+            addMessage('📤 Test 1: Attempting subscription WITHOUT token...', 'info');
+            ws.send(JSON.stringify(msg));
+        }
+
+        function subscribeInvalidToken() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('Not connected! Click Connect first.');
+                return;
+            }
+
+            var invalidToken = document.getElementById('invalidToken').value;
+
+            var msg = {
+                type: 'subscribe',
+                channelName: 'authChannel',
+                subscriberInfo: {
+                    clientId: clientId,
+                    authToken: invalidToken
+                }
+            };
+
+            addMessage('📤 Test 2: Attempting subscription with INVALID token: ' + invalidToken, 'info');
+            ws.send(JSON.stringify(msg));
+        }
+
+        function subscribeValidToken() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('Not connected! Click Connect first.');
+                return;
+            }
+
+            var msg = {
+                type: 'subscribe',
+                channelName: 'authChannel',
+                subscriberInfo: {
+                    clientId: clientId,
+                    authToken: 'SECRET123'  // Valid token
+                }
+            };
+
+            addMessage('📤 Test 3: Attempting subscription with VALID token: SECRET123', 'info');
+            ws.send(JSON.stringify(msg));
+        }
+
+        function subscribeCustomToken() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('Not connected! Click Connect first.');
+                return;
+            }
+
+            var customToken = document.getElementById('customToken').value;
+
+            if (!customToken) {
+                alert('Enter a token first!');
+                return;
+            }
+
+            var msg = {
+                type: 'subscribe',
+                channelName: 'authChannel',
+                subscriberInfo: {
+                    clientId: clientId,
+                    authToken: customToken
+                }
+            };
+
+            addMessage('📤 Test 4: Attempting subscription with custom token: ' + customToken, 'info');
+            ws.send(JSON.stringify(msg));
+        }
+
+        function clearMessages() {
+            document.getElementById('messages').innerHTML = '';
+        }
+    </script>
+</body>
+</html>

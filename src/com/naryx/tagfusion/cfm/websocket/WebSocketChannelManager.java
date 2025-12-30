@@ -33,11 +33,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.naryx.tagfusion.cfm.engine.cfArgStructData;
 import com.naryx.tagfusion.cfm.engine.cfArrayData;
+import com.naryx.tagfusion.cfm.engine.cfBooleanData;
+import com.naryx.tagfusion.cfm.engine.cfComponentData;
+import com.naryx.tagfusion.cfm.engine.cfData;
 import com.naryx.tagfusion.cfm.engine.cfEngine;
+import com.naryx.tagfusion.cfm.engine.cfSession;
 import com.naryx.tagfusion.cfm.engine.cfStringData;
 import com.naryx.tagfusion.cfm.engine.cfStructData;
+import com.naryx.tagfusion.cfm.engine.cfcMethodData;
 import com.naryx.tagfusion.cfm.engine.cfmRunTimeException;
+import com.naryx.tagfusion.util.dummyServletRequest;
+import com.naryx.tagfusion.util.dummyServletResponse;
 
 /**
  * Central manager for all WebSocket channels.
@@ -140,7 +148,7 @@ public class WebSocketChannelManager {
 	 * Subscribe a connection to a channel
 	 *
 	 * Phase 2: Simple subscription
-	 * Phase 3: Will invoke CFC allowSubscribe() hook
+	 * Phase 3: Invokes CFC allowSubscribe() hook if listener attached
 	 *
 	 * @param channelName the channel to subscribe to
 	 * @param conn the connection to subscribe
@@ -162,6 +170,56 @@ public class WebSocketChannelManager {
 		// Store subscriber info on connection
 		if (subscriberInfo != null) {
 			conn.setSubscriberInfo(subscriberInfo);
+		}
+
+		// Phase 3: Invoke allowSubscribe() hook if listener CFC is attached
+		if (channel.hasListener()) {
+			cfEngine.log("[WebSocket] Channel '" + channelName + "': Invoking allowSubscribe() hook");
+
+			try {
+				cfComponentData listenerCFC = channel.getListenerCFC();
+
+				// Create a temporary session for CFC invocation
+				// WebSocket connections don't have an HTTP session, so we create a minimal one
+				cfSession session = new cfSession(
+					new dummyServletRequest("/"),
+					new dummyServletResponse(),
+					cfEngine.thisServletContext
+				);
+
+				// Prepare named arguments for allowSubscribe(subscriberInfo)
+				cfArgStructData args = new cfArgStructData();
+				args.setData("subscriberInfo", subscriberInfo != null ? subscriberInfo : new cfStructData());
+
+				// Create method invocation data
+				cfcMethodData methodData = new cfcMethodData(session, "allowSubscribe", args);
+
+				// Invoke the allowSubscribe method
+				cfData result = listenerCFC.invokeComponentFunction(session, methodData);
+
+				// Check the result - should be boolean
+				boolean allowed = true;
+				if (result instanceof cfBooleanData) {
+					allowed = ((cfBooleanData) result).getBoolean();
+				} else if (result != null) {
+					// Convert to boolean
+					String resultStr = result.getString().toLowerCase();
+					allowed = resultStr.equals("true") || resultStr.equals("yes");
+				}
+
+				if (!allowed) {
+					cfEngine.log("[WebSocket] Channel '" + channelName + "': Subscription denied by allowSubscribe() hook");
+					return false;
+				}
+
+				cfEngine.log("[WebSocket] Channel '" + channelName + "': Subscription allowed by allowSubscribe() hook");
+
+			} catch (Exception e) {
+				cfEngine.log("[WebSocket] ERROR invoking allowSubscribe() hook: " + e.getMessage());
+				e.printStackTrace();
+				// On error, deny subscription for safety
+				return false;
+			}
 		}
 
 		// Add to channel's subscriber list
