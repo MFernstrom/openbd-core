@@ -35,12 +35,13 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.naryx.tagfusion.cfm.engine.cfEngine;
+import com.naryx.tagfusion.cfm.engine.cfComponentData;
 
 /**
  * Represents a single WebSocket channel that manages its subscribers.
  *
  * Phase 2: Basic subscriber management and message broadcasting
- * Phase 3: Will add Channel Listener CFC integration
+ * Phase 3: Channel Listener CFC integration (in progress)
  *
  * Thread-safe implementation using ConcurrentHashMap.
  */
@@ -48,18 +49,36 @@ public class WebSocketChannel {
 
 	private final String channelName;
 	private final Set<WebSocketConnection> subscribers;
+	private final cfComponentData listenerCFC;
 
 	/**
-	 * Create a new channel
+	 * Create a new channel without a listener CFC
 	 *
 	 * @param channelName the name of this channel
 	 */
 	public WebSocketChannel(String channelName) {
+		this(channelName, null);
+	}
+
+	/**
+	 * Create a new channel with an optional listener CFC
+	 *
+	 * @param channelName the name of this channel
+	 * @param listenerCFC the Channel Listener CFC (can be null)
+	 */
+	public WebSocketChannel(String channelName, cfComponentData listenerCFC) {
 		this.channelName = channelName;
+		this.listenerCFC = listenerCFC;
 		// ConcurrentHashMap.newKeySet() provides thread-safe Set
 		this.subscribers = ConcurrentHashMap.newKeySet();
 
-		cfEngine.log("[WebSocket] Channel created: " + channelName);
+		if (listenerCFC != null) {
+			cfEngine.log("[WebSocket] Channel created: " + channelName +
+			             " (with listener CFC)");
+		} else {
+			cfEngine.log("[WebSocket] Channel created: " + channelName +
+			             " (no listener)");
+		}
 	}
 
 	/**
@@ -175,5 +194,23 @@ public class WebSocketChannel {
 	 */
 	public boolean isSubscribed(WebSocketConnection conn) {
 		return subscribers.contains(conn);
+	}
+
+	/**
+	 * Get the Channel Listener CFC
+	 *
+	 * @return the listener CFC, or null if no listener attached
+	 */
+	public cfComponentData getListenerCFC() {
+		return listenerCFC;
+	}
+
+	/**
+	 * Check if this channel has a listener CFC
+	 *
+	 * @return true if a listener is attached, false otherwise
+	 */
+	public boolean hasListener() {
+		return listenerCFC != null;
 	}
 }

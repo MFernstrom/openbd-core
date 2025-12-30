@@ -268,6 +268,23 @@
             var channelType = channel.replace('Channel', '');
             var messagesDiv = document.getElementById(channelType + 'Messages');
 
+            // If messagesDiv doesn't exist (e.g., for 'system' messages or errors),
+            // add to all channel message areas
+            if (!messagesDiv) {
+                // Display in all channels for system/error messages
+                ['test', 'chat', 'notify'].forEach(function(ch) {
+                    var div = document.createElement('div');
+                    div.className = 'message error';
+                    div.textContent = new Date().toLocaleTimeString() + ' - ' + text;
+                    var msgDiv = document.getElementById(ch + 'Messages');
+                    if (msgDiv) {
+                        msgDiv.appendChild(div);
+                        div.scrollIntoView();
+                    }
+                });
+                return;
+            }
+
             var div = document.createElement('div');
             div.className = isError ? 'message error' : 'message ' + channelType;
             div.textContent = new Date().toLocaleTimeString() + ' - ' + text;
