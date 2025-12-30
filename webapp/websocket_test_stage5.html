@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Stage 5: canSendMessage() and beforeSendMessage() Hooks Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .connected { background-color: #d4edda; color: #155724; }
+        .disconnected { background-color: #f8d7da; color: #721c24; }
+
+        .user-panels {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .user-panel {
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        .user-panel.user-a { border-color: #007bff; background-color: #e7f1ff; }
+        .user-panel.user-b { border-color: #28a745; background-color: #e7f7ed; }
+        .user-panel.user-c { border-color: #dc3545; background-color: #ffe7e7; }
+
+        .user-panel h3 {
+            margin-top: 0;
+            font-size: 16px;
+        }
+        .user-panel.user-a h3 { color: #007bff; }
+        .user-panel.user-b h3 { color: #28a745; }
+        .user-panel.user-c h3 { color: #dc3545; }
+
+        .user-info {
+            font-size: 12px;
+            background-color: white;
+            padding: 8px;
+            border-radius: 4px;
+            margin: 5px 0;
+        }
+
+        .messages {
+            border: 1px solid #ccc;
+            height: 200px;
+            overflow-y: scroll;
+            padding: 8px;
+            margin: 10px 0;
+            background-color: white;
+            font-family: monospace;
+            font-size: 11px;
+        }
+        .message {
+            padding: 5px;
+            margin: 3px 0;
+            border-left: 3px solid #007bff;
+            background-color: #f8f9fa;
+            border-radius: 2px;
+        }
+        .message.own { border-left-color: #ffc107; background-color: #fff3cd; font-weight: bold; }
+        .message.filtered { border-left-color: #6c757d; background-color: #e9ecef; font-style: italic; }
+        .message.info { border-left-color: #17a2b8; }
+
+        button {
+            padding: 6px 12px;
+            margin: 3px;
+            font-size: 12px;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            color: white;
+        }
+        button.primary { background-color: #007bff; }
+        button.primary:hover { background-color: #0056b3; }
+        button.success { background-color: #28a745; }
+        button.success:hover { background-color: #218838; }
+        button.danger { background-color: #dc3545; }
+        button.danger:hover { background-color: #c82333; }
+
+        input[type="text"] {
+            padding: 6px;
+            width: 100%;
+            font-size: 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin: 3px 0;
+        }
+
+        .test-box {
+            background-color: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .test-box h3 {
+            margin-top: 0;
+            color: #856404;
+            font-size: 16px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 6px;
+            font-size: 10px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        .badge.room { background-color: #17a2b8; color: white; }
+        .badge.role { background-color: #6f42c1; color: white; }
+        .badge.you { background-color: #ffc107; color: #000; }
+    </style>
+</head>
+<body>
+    <h1>Stage 5: canSendMessage() and beforeSendMessage() Hooks Test</h1>
+
+    <p>This demonstrates per-subscriber message filtering and customization. Each user sees different content!</p>
+
+    <div>
+        <button class="primary" onclick="connect()">Connect WebSocket</button>
+        <button class="danger" onclick="disconnect()">Disconnect</button>
+        <button class="success" onclick="subscribeAll()">Subscribe All Users</button>
+        <button onclick="clearAllMessages()">Clear All</button>
+    </div>
+
+    <!-- User Panels -->
+    <div class="user-panels">
+        <!-- User A -->
+        <div class="user-panel user-a">
+            <h3>👤 User A (Lobby)</h3>
+            <div class="user-info">
+                <strong>User ID:</strong> alice<br>
+                <strong>Room:</strong> <span class="badge room">lobby</span><br>
+                <strong>Role:</strong> <span class="badge role">user</span>
+            </div>
+            <button class="success" onclick="subscribeUser('A')">Subscribe</button>
+            <input type="text" id="msgA" placeholder="Message text">
+            <button class="primary" onclick="publishUser('A', 'lobby')">Send to Lobby</button>
+            <div class="messages" id="messagesA"></div>
+        </div>
+
+        <!-- User B -->
+        <div class="user-panel user-b">
+            <h3>👤 User B (Lobby)</h3>
+            <div class="user-info">
+                <strong>User ID:</strong> bob<br>
+                <strong>Room:</strong> <span class="badge room">lobby</span><br>
+                <strong>Role:</strong> <span class="badge role">user</span>
+            </div>
+            <button class="success" onclick="subscribeUser('B')">Subscribe</button>
+            <input type="text" id="msgB" placeholder="Message text">
+            <button class="primary" onclick="publishUser('B', 'lobby')">Send to Lobby</button>
+            <div class="messages" id="messagesB"></div>
+        </div>
+
+        <!-- User C -->
+        <div class="user-panel user-c">
+            <h3>👤 User C (VIP)</h3>
+            <div class="user-info">
+                <strong>User ID:</strong> charlie<br>
+                <strong>Room:</strong> <span class="badge room">vip</span><br>
+                <strong>Role:</strong> <span class="badge role">admin</span>
+            </div>
+            <button class="success" onclick="subscribeUser('C')">Subscribe</button>
+            <input type="text" id="msgC" placeholder="Message text">
+            <button class="primary" onclick="publishUser('C', 'vip')">Send to VIP</button>
+            <button class="primary" onclick="publishUser('C', 'lobby')">Send to Lobby</button>
+            <div class="messages" id="messagesC"></div>
+        </div>
+    </div>
+
+    <!-- Test Scenarios -->
+    <div class="test-box">
+        <h3>🧪 Test 1: Room-Based Filtering (canSendMessage)</h3>
+        <p><strong>Steps:</strong></p>
+        <ol>
+            <li>Click "Subscribe All Users"</li>
+            <li>User A sends message to "lobby" → Both A and B receive (same room), C does NOT (different room)</li>
+            <li>User C sends message to "vip" → Only C receives, A and B do NOT</li>
+        </ol>
+        <p><strong>Expected:</strong> Messages only delivered to users in the same room (canSendMessage filters)</p>
+    </div>
+
+    <div class="test-box">
+        <h3>🧪 Test 2: Email Privacy (beforeSendMessage)</h3>
+        <p><strong>Steps:</strong></p>
+        <ol>
+            <li>Add email to User A's message: <code>alice@example.com</code></li>
+            <li>User A sends to lobby</li>
+            <li>Check messages: A sees real email, B sees "[HIDDEN]"</li>
+        </ol>
+        <p><strong>Expected:</strong> Email addresses hidden from non-sender users</p>
+    </div>
+
+    <div class="test-box">
+        <h3>🧪 Test 3: Phone Privacy - Admin Only (beforeSendMessage)</h3>
+        <p><strong>Steps:</strong></p>
+        <ol>
+            <li>User C (admin) sends message to lobby with phone: <code>555-1234</code></li>
+            <li>Check messages: C sees phone, A and B see "[ADMIN ONLY]" (they're not admins)</li>
+        </ol>
+        <p><strong>Expected:</strong> Phone numbers only visible to admins and sender</p>
+    </div>
+
+    <div class="test-box">
+        <h3>🧪 Test 4: "isYou" Flag (beforeSendMessage)</h3>
+        <p><strong>Steps:</strong></p>
+        <ol>
+            <li>User B sends message to lobby</li>
+            <li>Check User B's panel: Message should be highlighted/bold (isYou=true)</li>
+            <li>Check User A's panel: Normal display (isYou=false)</li>
+        </ol>
+        <p><strong>Expected:</strong> Each user sees their own messages differently</p>
+    </div>
+
+    <script>
+        var ws = null;
+
+        var users = {
+            A: {
+                userId: 'alice',
+                room: 'lobby',
+                role: 'user',
+                subscribed: false
+            },
+            B: {
+                userId: 'bob',
+                room: 'lobby',
+                role: 'user',
+                subscribed: false
+            },
+            C: {
+                userId: 'charlie',
+                room: 'vip',
+                role: 'admin',
+                subscribed: false
+            }
+        };
+
+        function addMessage(user, text, isOwn) {
+            var messagesDiv = document.getElementById('messages' + user);
+            var div = document.createElement('div');
+            div.className = isOwn ? 'message own' : 'message';
+            div.textContent = new Date().toLocaleTimeString() + ' - ' + text;
+            messagesDiv.appendChild(div);
+            div.scrollIntoView();
+        }
+
+        function addFilteredMessage(user, text) {
+            var messagesDiv = document.getElementById('messages' + user);
+            var div = document.createElement('div');
+            div.className = 'message filtered';
+            div.textContent = new Date().toLocaleTimeString() + ' - ' + text;
+            messagesDiv.appendChild(div);
+            div.scrollIntoView();
+        }
+
+        function connect() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                alert('Already connected!');
+                return;
+            }
+
+            ws = new WebSocket('ws://localhost:8580/openbd/ws');
+
+            ws.onopen = function() {
+                addMessage('A', '✅ WebSocket Connected', false);
+                addMessage('B', '✅ WebSocket Connected', false);
+                addMessage('C', '✅ WebSocket Connected', false);
+            };
+
+            ws.onmessage = function(evt) {
+                try {
+                    var msg = JSON.parse(evt.data);
+                    handleMessage(msg);
+                } catch (e) {
+                    console.error('Error parsing message:', e);
+                }
+            };
+
+            ws.onerror = function(evt) {
+                addMessage('A', '❌ WebSocket error', false);
+                addMessage('B', '❌ WebSocket error', false);
+                addMessage('C', '❌ WebSocket error', false);
+            };
+
+            ws.onclose = function() {
+                addMessage('A', '🔌 Disconnected', false);
+                addMessage('B', '🔌 Disconnected', false);
+                addMessage('C', '🔌 Disconnected', false);
+                ws = null;
+                users.A.subscribed = false;
+                users.B.subscribed = false;
+                users.C.subscribed = false;
+            };
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+
+        function handleMessage(msg) {
+            // Handle for all users
+            ['A', 'B', 'C'].forEach(function(user) {
+                var userId = users[user].userId;
+
+                switch (msg.type) {
+                    case 'subscribed':
+                        if (msg.channelName === 'roomChannel') {
+                            // Determine which user this subscription is for based on subscriberInfo
+                            // For simplicity, we'll just mark all as subscribed when any subscribes
+                            addMessage(user, '✅ Subscribed to roomChannel', false);
+                        }
+                        break;
+
+                    case 'message':
+                        if (msg.channelName === 'roomChannel') {
+                            // Each user received this message from the server
+                            // The server already filtered and customized it per-subscriber
+                            var msgData = msg.message;
+
+                            // Check if this user should have received this message
+                            // If viewedBy matches this user, display it
+                            if (msgData.viewedBy === userId) {
+                                var isOwn = msgData.isYou === true;
+
+                                var displayText = '📩 ';
+                                if (isOwn) displayText += '(YOU) ';
+
+                                displayText += msgData.text || msgData.TEXT || '';
+
+                                if (msgData.email) {
+                                    displayText += ' [Email: ' + msgData.email + ']';
+                                }
+
+                                if (msgData.phoneNumber || msgData.PHONENUMBER) {
+                                    displayText += ' [Phone: ' + (msgData.phoneNumber || msgData.PHONENUMBER) + ']';
+                                }
+
+                                if (msgData.room || msgData.ROOM) {
+                                    displayText += ' [Room: ' + (msgData.room || msgData.ROOM) + ']';
+                                }
+
+                                addMessage(user, displayText, isOwn);
+                            }
+                        }
+                        break;
+
+                    case 'error':
+                        addMessage(user, '❌ ' + msg.message, false);
+                        break;
+                }
+            });
+        }
+
+        function subscribeUser(user) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('Not connected! Click Connect WebSocket first.');
+                return;
+            }
+
+            var userData = users[user];
+
+            var msg = {
+                type: 'subscribe',
+                channelName: 'roomChannel',
+                subscriberInfo: {
+                    userId: userData.userId,
+                    room: userData.room,
+                    role: userData.role
+                }
+            };
+
+            ws.send(JSON.stringify(msg));
+            userData.subscribed = true;
+        }
+
+        function subscribeAll() {
+            subscribeUser('A');
+            setTimeout(function() { subscribeUser('B'); }, 200);
+            setTimeout(function() { subscribeUser('C'); }, 400);
+        }
+
+        function publishUser(user, toRoom) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('Not connected!');
+                return;
+            }
+
+            var userData = users[user];
+            var text = document.getElementById('msg' + user).value;
+
+            if (!text) {
+                text = 'Hello from ' + userData.userId + '!';
+            }
+
+            var message = {
+                text: text,
+                fromUserId: userData.userId,
+                room: toRoom,
+                timestamp: new Date().toISOString()
+            };
+
+            // Add email for User A
+            if (user === 'A') {
+                message.email = 'alice@example.com';
+            }
+
+            // Add phone for User C
+            if (user === 'C') {
+                message.phoneNumber = '555-1234';
+            }
+
+            var msg = {
+                type: 'publish',
+                channelName: 'roomChannel',
+                message: message
+            };
+
+            ws.send(JSON.stringify(msg));
+            addMessage(user, '📤 Sent to room: ' + toRoom, false);
+
+            // Clear input
+            document.getElementById('msg' + user).value = '';
+        }
+
+        function clearAllMessages() {
+            document.getElementById('messagesA').innerHTML = '';
+            document.getElementById('messagesB').innerHTML = '';
+            document.getElementById('messagesC').innerHTML = '';
+        }
+    </script>
+</body>
+</html>

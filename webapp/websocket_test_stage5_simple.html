@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Stage 5: Per-Subscriber Hooks Test (Simple)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .connected { background-color: #d4edda; color: #155724; }
+        .disconnected { background-color: #f8d7da; color: #721c24; }
+        .messages {
+            border: 1px solid #ccc;
+            height: 300px;
+            overflow-y: scroll;
+            padding: 10px;
+            margin: 10px 0;
+            background-color: #f8f9fa;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        .message {
+            padding: 5px;
+            margin: 3px 0;
+            border-left: 3px solid #007bff;
+            background-color: white;
+            border-radius: 2px;
+        }
+        .message.own { border-left-color: #ffc107; background-color: #fff3cd; font-weight: bold; }
+        .message.success { border-left-color: #28a745; background-color: #d4edda; }
+        .message.info { border-left-color: #17a2b8; }
+        button {
+            padding: 8px 15px;
+            margin: 3px;
+            font-size: 13px;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            color: white;
+        }
+        button.primary { background-color: #007bff; }
+        button.primary:hover { background-color: #0056b3; }
+        button.success { background-color: #28a745; }
+        button.success:hover { background-color: #218838; }
+        button.danger { background-color: #dc3545; }
+        button.danger:hover { background-color: #c82333; }
+        input, select {
+            padding: 8px;
+            margin: 5px;
+            font-size: 13px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        input[type="text"] { width: 300px; }
+        .user-config {
+            background-color: #e7f1ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        .test-box {
+            background-color: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .test-box h3 {
+            margin-top: 0;
+            color: #856404;
+        }
+        .instruction {
+            background-color: #cfe2ff;
+            border-left: 4px solid #0d6efd;
+            padding: 12px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Stage 5: Per-Subscriber Hooks Test</h1>
+
+    <div class="instruction">
+        <strong>📋 Instructions for Multi-User Testing:</strong><br>
+        To properly test per-subscriber filtering and customization, open this page in <strong>3 separate browser tabs</strong>:<br>
+        • Tab 1: User alice, Room lobby, Role user<br>
+        • Tab 2: User bob, Room lobby, Role user<br>
+        • Tab 3: User charlie, Room vip, Role admin<br><br>
+        Each tab will have its own WebSocket connection and can simulate different users receiving different content!
+    </div>
+
+    <div id="status" class="status disconnected">Disconnected</div>
+
+    <div class="user-config">
+        <h3>👤 Your User Configuration</h3>
+        <label>User ID: <input type="text" id="userId" value="alice"></label><br>
+        <label>Room:
+            <select id="room">
+                <option value="lobby">lobby</option>
+                <option value="vip">vip</option>
+            </select>
+        </label><br>
+        <label>Role:
+            <select id="role">
+                <option value="user">user</option>
+                <option value="admin">admin</option>
+            </select>
+        </label><br>
+        <button class="primary" onclick="connect()">Connect</button>
+        <button class="success" onclick="subscribe()">Subscribe</button>
+        <button class="danger" onclick="disconnect()">Disconnect</button>
+    </div>
+
+    <div>
+        <h3>📤 Send Message</h3>
+        <label>Message Text: <input type="text" id="msgText" placeholder="Enter your message"></label><br>
+        <label>To Room:
+            <select id="toRoom">
+                <option value="lobby">lobby</option>
+                <option value="vip">vip</option>
+            </select>
+        </label>
+        <label><input type="checkbox" id="includeEmail"> Include Email (alice@example.com)</label>
+        <label><input type="checkbox" id="includePhone"> Include Phone (555-1234)</label><br>
+        <button class="primary" onclick="sendMessage()">Send Message</button>
+        <button onclick="clearMessages()">Clear Messages</button>
+    </div>
+
+    <div class="messages" id="messages"></div>
+
+    <!-- Test Scenarios -->
+    <div class="test-box">
+        <h3>🧪 Test Scenarios</h3>
+
+        <p><strong>Test 1: Room-Based Filtering (canSendMessage)</strong></p>
+        <ol>
+            <li>Open this page in Tab 1: alice, lobby, user</li>
+            <li>Open this page in Tab 2: bob, lobby, user</li>
+            <li>Open this page in Tab 3: charlie, vip, admin</li>
+            <li>Subscribe all users</li>
+            <li>Tab 1 (alice) sends to "lobby" → Tabs 1 and 2 receive, Tab 3 does NOT</li>
+            <li>Tab 3 (charlie) sends to "vip" → Only Tab 3 receives</li>
+        </ol>
+
+        <p><strong>Test 2: Email Privacy (beforeSendMessage)</strong></p>
+        <ol>
+            <li>Tab 1 (alice) checks "Include Email" and sends to lobby</li>
+            <li>Tab 1 sees: real email "alice@example.com"</li>
+            <li>Tab 2 sees: "[HIDDEN]"</li>
+        </ol>
+
+        <p><strong>Test 3: Phone Privacy - Admin Only (beforeSendMessage)</strong></p>
+        <ol>
+            <li>Tab 3 (charlie=admin) checks "Include Phone" and sends to lobby</li>
+            <li>Tab 3 sees: real phone "555-1234"</li>
+            <li>Tabs 1 & 2 see: "[ADMIN ONLY]" (they're not admins)</li>
+        </ol>
+
+        <p><strong>Test 4: "isYou" Flag (beforeSendMessage)</strong></p>
+        <ol>
+            <li>Tab 2 (bob) sends message to lobby</li>
+            <li>Tab 2 sees: Message in <strong>BOLD/HIGHLIGHTED</strong> (isYou=true)</li>
+            <li>Tab 1 sees: Normal message (isYou=false)</li>
+        </ol>
+    </div>
+
+    <script>
+        var ws = null;
+
+        function addMessage(text, type) {
+            var messagesDiv = document.getElementById('messages');
+            var div = document.createElement('div');
+            div.className = 'message ' + (type || '');
+            div.innerHTML = new Date().toLocaleTimeString() + ' - ' + text;
+            messagesDiv.appendChild(div);
+            div.scrollIntoView();
+        }
+
+        function connect() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                alert('Already connected!');
+                return;
+            }
+
+            ws = new WebSocket('ws://localhost:8580/openbd/ws');
+
+            ws.onopen = function() {
+                document.getElementById('status').textContent = 'Connected';
+                document.getElementById('status').className = 'status connected';
+                addMessage('✅ Connected to WebSocket', 'success');
+            };
+
+            ws.onmessage = function(evt) {
+                try {
+                    var msg = JSON.parse(evt.data);
+                    handleMessage(msg);
+                } catch (e) {
+                    addMessage('❌ Error: ' + e.message, 'error');
+                }
+            };
+
+            ws.onerror = function(evt) {
+                addMessage('❌ WebSocket error', 'error');
+            };
+
+            ws.onclose = function() {
+                document.getElementById('status').textContent = 'Disconnected';
+                document.getElementById('status').className = 'status disconnected';
+                addMessage('🔌 Disconnected', 'info');
+                ws = null;
+            };
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+
+        function subscribe() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('Not connected! Click Connect first.');
+                return;
+            }
+
+            var userId = document.getElementById('userId').value;
+            var room = document.getElementById('room').value;
+            var role = document.getElementById('role').value;
+
+            var msg = {
+                type: 'subscribe',
+                channelName: 'roomChannel',
+                subscriberInfo: {
+                    userId: userId,
+                    room: room,
+                    role: role
+                }
+            };
+
+            ws.send(JSON.stringify(msg));
+            addMessage('📤 Subscribing as ' + userId + ' (room: ' + room + ', role: ' + role + ')', 'info');
+        }
+
+        function sendMessage() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('Not connected!');
+                return;
+            }
+
+            var userId = document.getElementById('userId').value;
+            var text = document.getElementById('msgText').value;
+            var toRoom = document.getElementById('toRoom').value;
+            var includeEmail = document.getElementById('includeEmail').checked;
+            var includePhone = document.getElementById('includePhone').checked;
+
+            if (!text) {
+                alert('Enter a message!');
+                return;
+            }
+
+            var message = {
+                text: text,
+                fromUserId: userId,
+                room: toRoom,
+                timestamp: new Date().toISOString()
+            };
+
+            if (includeEmail) {
+                message.email = userId + '@example.com';
+            }
+
+            if (includePhone) {
+                message.phoneNumber = '555-1234';
+            }
+
+            var msg = {
+                type: 'publish',
+                channelName: 'roomChannel',
+                message: message
+            };
+
+            ws.send(JSON.stringify(msg));
+            addMessage('📤 Sent to room: ' + toRoom, 'info');
+        }
+
+        function handleMessage(msg) {
+            switch (msg.type) {
+                case 'subscribed':
+                    addMessage('✅ Subscribed to ' + msg.channelName, 'success');
+                    break;
+
+                case 'message':
+                    var msgData = msg.message;
+                    var isOwn = msgData.isYou === true || msgData.ISYOU === true;
+
+                    var displayText = '📩 ';
+                    if (isOwn) {
+                        displayText += '<strong>[YOU]</strong> ';
+                    }
+
+                    displayText += (msgData.text || msgData.TEXT || '');
+
+                    if (msgData.email || msgData.EMAIL) {
+                        displayText += ' <em>[Email: ' + (msgData.email || msgData.EMAIL) + ']</em>';
+                    }
+
+                    if (msgData.phoneNumber || msgData.PHONENUMBER) {
+                        displayText += ' <em>[Phone: ' + (msgData.phoneNumber || msgData.PHONENUMBER) + ']</em>';
+                    }
+
+                    if (msgData.room || msgData.ROOM) {
+                        displayText += ' <em>[Room: ' + (msgData.room || msgData.ROOM) + ']</em>';
+                    }
+
+                    addMessage(displayText, isOwn ? 'own' : '');
+                    break;
+
+                case 'error':
+                    addMessage('❌ ERROR: ' + msg.message, 'error');
+                    break;
+
+                default:
+                    addMessage('📩 ' + msg.type + ': ' + JSON.stringify(msg), 'info');
+            }
+        }
+
+        function clearMessages() {
+            document.getElementById('messages').innerHTML = '';
+        }
+    </script>
+</body>
+</html>

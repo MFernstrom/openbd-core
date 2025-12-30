@@ -390,7 +390,13 @@ public class WebSocketChannelManager {
 		                         escapeJSON(channelName) + "\",\"message\":" +
 		                         serializeJSON(finalMessageData) + "}";
 
-		channel.publish(broadcastMessage);
+		// Pass both the formatted message and raw data to channel
+		// The channel will use raw data for per-subscriber hooks
+		cfData finalDataAsCfData = (finalMessageData instanceof cfData) ?
+		                           (cfData) finalMessageData :
+		                           new cfStringData(finalMessageData.toString());
+
+		channel.publish(broadcastMessage, finalDataAsCfData);
 		return true;
 	}
 
