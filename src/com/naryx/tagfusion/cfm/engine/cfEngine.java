@@ -332,16 +332,26 @@ public class cfEngine extends Object implements cfEngineMBean {
 		journalManager = new JournalManager();
 
 		// Initialize WebSocket server (if enabled)
+		log( "[WebSocket] Checking WebSocket configuration..." );
 		try {
-			boolean wsEnabled = getSystemParameters().getBoolean( "server.websocket.enabled", false );
+			boolean wsEnabled = getSystemParameters().getBoolean( "server.system.websocket.enabled", false );
+			log( "[WebSocket] server.system.websocket.enabled = " + wsEnabled );
+
 			if ( wsEnabled ) {
-				int wsPort = getSystemParameters().getInt( "server.websocket.port", 8580 );
+				int wsPort = getSystemParameters().getInt( "server.system.websocket.port", 8580 );
+				log( "[WebSocket] server.system.websocket.port = " + wsPort );
+				log( "[WebSocket] Getting WebSocketServer instance..." );
 				wsServer = WebSocketServer.getInstance();
+				log( "[WebSocket] Starting WebSocket server on port " + wsPort + "..." );
 				wsServer.start( wsPort );
+				log( "[WebSocket] WebSocket server started successfully" );
+			} else {
+				log( "[WebSocket] WebSocket server is disabled in configuration" );
 			}
 		} catch ( Exception e ) {
 			// Log error but don't fail server startup
 			log( "[WebSocket] Failed to start WebSocket server: " + e.getMessage() );
+			e.printStackTrace();
 		}
 
 		log( runtimeMessages.getString( "cfEngine.serverStarted" ) );
