@@ -617,6 +617,9 @@ public class registerTagsExpressions extends java.lang.Object {
 
 		// WebSocket functions
 		functions.put( "wsregisterchannel", 					"com.naryx.tagfusion.expression.function.websocket.wsRegisterChannel" );
+		functions.put( "wspublish", 								"com.naryx.tagfusion.expression.function.websocket.wsPublish" );
+		functions.put( "wsgetsubscribers", 					"com.naryx.tagfusion.expression.function.websocket.wsGetSubscribers" );
+		functions.put( "wsgetallchannels", 					"com.naryx.tagfusion.expression.function.websocket.wsGetAllChannels" );
 
 		cfEngine.thisPlatform.registerFunctions(functions);
   }

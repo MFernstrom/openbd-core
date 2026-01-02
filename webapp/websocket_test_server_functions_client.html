@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>WebSocket Client - Server-Side Publishing Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .connected { background-color: #d4edda; color: #155724; }
+        .disconnected { background-color: #f8d7da; color: #721c24; }
+        .messages {
+            border: 1px solid #ccc;
+            height: 400px;
+            overflow-y: scroll;
+            padding: 10px;
+            margin: 10px 0;
+            background-color: #f8f9fa;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        .message {
+            padding: 5px;
+            margin: 3px 0;
+            border-left: 3px solid #007bff;
+            background-color: white;
+            border-radius: 2px;
+        }
+        .message.server { border-left-color: #28a745; background-color: #d4edda; }
+        .message.info { border-left-color: #17a2b8; }
+        .message.error { border-left-color: #dc3545; background-color: #f8d7da; }
+        button {
+            padding: 8px 15px;
+            margin: 3px;
+            font-size: 13px;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            background-color: #007bff;
+        }
+        button:hover { background-color: #0056b3; }
+        button.success { background-color: #28a745; }
+        button.success:hover { background-color: #218838; }
+        button.danger { background-color: #dc3545; }
+        button.danger:hover { background-color: #c82333; }
+        select, input {
+            padding: 8px;
+            margin: 5px;
+            font-size: 13px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Client - Server-Side Publishing Test</h1>
+
+    <div id="status" class="status disconnected">Disconnected</div>
+
+    <div>
+        <h3>Connection</h3>
+        <button onclick="connect()">Connect</button>
+        <button class="danger" onclick="disconnect()">Disconnect</button>
+    </div>
+
+    <div>
+        <h3>Subscribe to Channel</h3>
+        <select id="channelSelect">
+            <option value="serverTestChannel">serverTestChannel</option>
+            <option value="testChannel1">testChannel1</option>
+            <option value="testChannel2">testChannel2</option>
+            <option value="premiumChat">premiumChat</option>
+        </select>
+        <input type="text" id="userId" placeholder="User ID" value="testUser">
+        <button class="success" onclick="subscribe()">Subscribe</button>
+    </div>
+
+    <div>
+        <h3>📨 Messages</h3>
+        <button onclick="clearMessages()">Clear Messages</button>
+        <div class="messages" id="messages"></div>
+    </div>
+
+    <div>
+        <h3>Instructions</h3>
+        <ol>
+            <li>Click <strong>Connect</strong> to establish WebSocket connection</li>
+            <li>Select a channel and click <strong>Subscribe</strong></li>
+            <li>Open <a href="websocket_test_server_publish.cfm" target="_blank">Server Publish Page</a></li>
+            <li>Send messages from the server and watch them appear here!</li>
+        </ol>
+    </div>
+
+    <script>
+        var ws = null;
+        var subscribedChannels = [];
+
+        function addMessage(text, type) {
+            var messagesDiv = document.getElementById('messages');
+            var div = document.createElement('div');
+            div.className = 'message ' + (type || '');
+            div.innerHTML = new Date().toLocaleTimeString() + ' - ' + text;
+            messagesDiv.appendChild(div);
+            div.scrollIntoView();
+        }
+
+        function connect() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                alert('Already connected!');
+                return;
+            }
+
+            ws = new WebSocket('ws://localhost:8580/openbd/ws');
+
+            ws.onopen = function() {
+                document.getElementById('status').textContent = 'Connected';
+                document.getElementById('status').className = 'status connected';
+                addMessage('✅ Connected to WebSocket', 'info');
+            };
+
+            ws.onmessage = function(evt) {
+                try {
+                    var msg = JSON.parse(evt.data);
+                    handleMessage(msg);
+                } catch (e) {
+                    addMessage('❌ Error: ' + e.message, 'error');
+                }
+            };
+
+            ws.onerror = function(evt) {
+                addMessage('❌ WebSocket error', 'error');
+            };
+
+            ws.onclose = function() {
+                document.getElementById('status').textContent = 'Disconnected';
+                document.getElementById('status').className = 'status disconnected';
+                addMessage('🔌 Disconnected', 'info');
+                ws = null;
+                subscribedChannels = [];
+            };
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+
+        function subscribe() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('Not connected! Click Connect first.');
+                return;
+            }
+
+            var channelName = document.getElementById('channelSelect').value;
+            var userId = document.getElementById('userId').value;
+
+            if (!userId) {
+                alert('Enter a User ID!');
+                return;
+            }
+
+            var msg = {
+                type: 'subscribe',
+                channelName: channelName,
+                subscriberInfo: {
+                    userId: userId,
+                    connectedAt: new Date().toISOString()
+                }
+            };
+
+            ws.send(JSON.stringify(msg));
+            addMessage('📤 Subscribing to ' + channelName + ' as ' + userId, 'info');
+            subscribedChannels.push(channelName);
+        }
+
+        function handleMessage(msg) {
+            switch (msg.type) {
+                case 'subscribed':
+                    addMessage('✅ Subscribed to ' + msg.channelName, 'info');
+                    break;
+
+                case 'message':
+                    var msgData = msg.message;
+                    var displayText = '📩 <strong>[' + msg.channelName + ']</strong> ';
+
+                    // Check if message is from SERVER
+                    var isFromServer = false;
+                    if (typeof msgData === 'object') {
+                        if (msgData.from === 'SERVER' || msgData.FROM === 'SERVER') {
+                            isFromServer = true;
+                            displayText += '<strong style="color: green;">[FROM SERVER]</strong> ';
+                        }
+
+                        // Display the message content
+                        if (msgData.text || msgData.TEXT) {
+                            displayText += (msgData.text || msgData.TEXT);
+                        } else {
+                            displayText += JSON.stringify(msgData, null, 2);
+                        }
+
+                        // Show timestamp if available
+                        if (msgData.timestamp || msgData.TIMESTAMP) {
+                            var ts = msgData.timestamp || msgData.TIMESTAMP;
+                            displayText += ' <em>[' + new Date(ts).toLocaleTimeString() + ']</em>';
+                        }
+                    } else {
+                        // Simple string message
+                        displayText += msgData;
+                    }
+
+                    addMessage(displayText, isFromServer ? 'server' : '');
+                    break;
+
+                case 'error':
+                    addMessage('❌ ERROR: ' + msg.message, 'error');
+                    break;
+
+                default:
+                    addMessage('📩 ' + msg.type + ': ' + JSON.stringify(msg), 'info');
+            }
+        }
+
+        function clearMessages() {
+            document.getElementById('messages').innerHTML = '';
+        }
+
+        // Auto-connect on page load
+        window.onload = function() {
+            addMessage('Page loaded. Click Connect to start.', 'info');
+        };
+    </script>
+</body>
+</html>

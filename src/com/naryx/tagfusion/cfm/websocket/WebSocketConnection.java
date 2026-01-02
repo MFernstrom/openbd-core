@@ -267,6 +267,59 @@ public class WebSocketConnection {
 		return subscribedChannels.size();
 	}
 
+	/**
+	 * Create a synthetic "server publisher" connection for server-side publishing.
+	 *
+	 * This creates a special WebSocketConnection that represents the server itself
+	 * when publishing messages via wsPublish(). Since there's no actual WebSocket
+	 * connection from a client, this creates a minimal connection object.
+	 *
+	 * The connection will have a fixed ID of "SERVER" and will not be able to
+	 * send messages (since there's no real connection).
+	 *
+	 * @return a server publisher connection
+	 */
+	public static WebSocketConnection createServerPublisher() {
+		// Create a minimal connection with null context
+		WebSocketConnection serverConn = new WebSocketConnection(null);
+
+		// Override the connection ID to identify this as a server publisher
+		// We'll use reflection to set the final field, or we can modify the constructor
+		// For simplicity, let's create a special constructor
+		return new ServerPublisherConnection();
+	}
+
+	/**
+	 * Special subclass for server-side publishing
+	 */
+	private static class ServerPublisherConnection extends WebSocketConnection {
+		private static final String SERVER_ID = "SERVER";
+
+		public ServerPublisherConnection() {
+			super(null);  // No actual channel context
+		}
+
+		@Override
+		public String getConnectionId() {
+			return SERVER_ID;
+		}
+
+		@Override
+		public boolean isConnected() {
+			return true;  // Always "connected" for server publishing
+		}
+
+		@Override
+		public void sendMessage(String message) {
+			// No-op: server doesn't send to itself
+		}
+
+		@Override
+		public void close() {
+			// No-op: can't close server
+		}
+	}
+
 	@Override
 	public String toString() {
 		return "WebSocketConnection{" +
