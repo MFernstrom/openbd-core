@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Stage 7: Comprehensive Premium Chat System Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .connected { background-color: #d4edda; color: #155724; }
+        .disconnected { background-color: #f8d7da; color: #721c24; }
+
+        .user-panels {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .user-panel {
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        .user-panel.free { border-color: #6c757d; background-color: #f8f9fa; }
+        .user-panel.premium { border-color: #007bff; background-color: #e7f1ff; }
+        .user-panel.vip { border-color: #ffc107; background-color: #fff3cd; }
+
+        .user-panel h3 {
+            margin-top: 0;
+            font-size: 16px;
+        }
+        .user-panel.free h3 { color: #6c757d; }
+        .user-panel.premium h3 { color: #007bff; }
+        .user-panel.vip h3 { color: #ffc107; }
+
+        .user-info {
+            font-size: 12px;
+            background-color: white;
+            padding: 8px;
+            border-radius: 4px;
+            margin: 5px 0;
+        }
+
+        .messages {
+            border: 1px solid #ccc;
+            height: 250px;
+            overflow-y: scroll;
+            padding: 8px;
+            margin: 10px 0;
+            background-color: white;
+            font-family: monospace;
+            font-size: 11px;
+        }
+        .message {
+            padding: 5px;
+            margin: 3px 0;
+            border-left: 3px solid #007bff;
+            background-color: #f8f9fa;
+            border-radius: 2px;
+        }
+        .message.own { border-left-color: #ffc107; background-color: #fff3cd; font-weight: bold; }
+        .message.error { border-left-color: #dc3545; background-color: #f8d7da; color: #721c24; }
+        .message.success { border-left-color: #28a745; background-color: #d4edda; color: #155724; }
+        .message.info { border-left-color: #17a2b8; }
+
+        button {
+            padding: 6px 12px;
+            margin: 3px;
+            font-size: 12px;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            color: white;
+        }
+        button.primary { background-color: #007bff; }
+        button.primary:hover { background-color: #0056b3; }
+        button.success { background-color: #28a745; }
+        button.success:hover { background-color: #218838; }
+        button.danger { background-color: #dc3545; }
+        button.danger:hover { background-color: #c82333; }
+        button.warning { background-color: #ffc107; color: #000; }
+        button.warning:hover { background-color: #e0a800; }
+
+        input[type="text"], textarea {
+            padding: 6px;
+            width: 95%;
+            font-size: 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin: 3px 0;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 50px;
+        }
+
+        .test-box {
+            background-color: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .test-box h3 {
+            margin-top: 0;
+            color: #856404;
+            font-size: 16px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 6px;
+            font-size: 10px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        .badge.tier-free { background-color: #6c757d; color: white; }
+        .badge.tier-premium { background-color: #007bff; color: white; }
+        .badge.tier-vip { background-color: #ffc107; color: #000; }
+        .badge.room { background-color: #17a2b8; color: white; }
+
+        .intro {
+            background-color: #d1ecf1;
+            border-left: 4px solid #0c5460;
+            padding: 15px;
+            margin: 15px 0;
+            color: #0c5460;
+        }
+    </style>
+</head>
+<body>
+    <h1>Stage 7: Comprehensive Premium Chat System</h1>
+
+    <div class="intro">
+        <strong>🎯 What This Test Demonstrates:</strong><br>
+        This is a complete real-world example showing all 5 Channel Listener hooks working together:
+        <ul>
+            <li><strong>allowSubscribe()</strong>: Authentication, tier validation, VIP room access</li>
+            <li><strong>allowPublish()</strong>: Ban checking, tier restrictions, rate limiting (5s/2s/1s)</li>
+            <li><strong>beforePublish()</strong>: Sanitization, timestamps, message length limits (100/500/2000)</li>
+            <li><strong>canSendMessage()</strong>: Room filtering, premium feature filtering, block lists</li>
+            <li><strong>beforeSendMessage()</strong>: Privacy controls, tier-based features, custom per-user views</li>
+        </ul>
+    </div>
+
+    <div>
+        <button class="primary" onclick="connect()">Connect WebSocket</button>
+        <button class="danger" onclick="disconnect()">Disconnect</button>
+        <button class="success" onclick="subscribeAll()">Subscribe All Users</button>
+        <button onclick="clearAllMessages()">Clear All Messages</button>
+    </div>
+
+    <!-- User Panels -->
+    <div class="user-panels">
+        <!-- Free User -->
+        <div class="user-panel free">
+            <h3>🆓 Alice (Free Tier)</h3>
+            <div class="user-info">
+                <strong>User ID:</strong> alice<br>
+                <strong>Tier:</strong> <span class="badge tier-free">FREE</span><br>
+                <strong>Room:</strong> <span class="badge room">lobby</span><br>
+                <strong>Limits:</strong> 100 chars, 5s cooldown, lobby only
+            </div>
+            <button class="success" onclick="subscribeUser('alice')">Subscribe</button>
+            <textarea id="msgAlice" placeholder="Message (max 100 chars for free)">Hello from Alice!</textarea>
+            <button class="primary" onclick="publishUser('alice')">Send to Lobby</button>
+            <button class="warning" onclick="publishUser('alice', true)">Send Premium Feature (should fail)</button>
+            <div class="messages" id="messagesAlice"></div>
+        </div>
+
+        <!-- Premium User -->
+        <div class="user-panel premium">
+            <h3>💎 Bob (Premium Tier)</h3>
+            <div class="user-info">
+                <strong>User ID:</strong> bob<br>
+                <strong>Tier:</strong> <span class="badge tier-premium">PREMIUM</span><br>
+                <strong>Room:</strong> <span class="badge room">premium</span><br>
+                <strong>Limits:</strong> 500 chars, 2s cooldown, any room except VIP
+            </div>
+            <button class="success" onclick="subscribeUser('bob')">Subscribe</button>
+            <textarea id="msgBob" placeholder="Message (max 500 chars for premium)">Hey, I'm Bob with premium access!</textarea>
+            <button class="primary" onclick="publishUser('bob')">Send to Premium</button>
+            <button class="warning" onclick="publishUser('bob', true)">Send Premium Feature</button>
+            <div class="messages" id="messagesBob"></div>
+        </div>
+
+        <!-- VIP User -->
+        <div class="user-panel vip">
+            <h3>👑 Charlie (VIP Tier)</h3>
+            <div class="user-info">
+                <strong>User ID:</strong> charlie<br>
+                <strong>Tier:</strong> <span class="badge tier-vip">VIP</span><br>
+                <strong>Room:</strong> <span class="badge room">vip</span><br>
+                <strong>Limits:</strong> 2000 chars, 1s cooldown, all rooms
+            </div>
+            <button class="success" onclick="subscribeUser('charlie')">Subscribe</button>
+            <textarea id="msgCharlie" placeholder="Message (max 2000 chars for VIP)">Greetings from VIP lounge!</textarea>
+            <button class="primary" onclick="publishUser('charlie')">Send to VIP</button>
+            <button class="warning" onclick="publishUser('charlie', true)">Send Premium Feature</button>
+            <div class="messages" id="messagesCharlie"></div>
+        </div>
+    </div>
+
+    <!-- Test Scenarios -->
+    <div class="test-box">
+        <h3>🧪 Test Scenarios (Run in Order)</h3>
+
+        <p><strong>Test 1: Subscribe with Tier Validation (allowSubscribe)</strong></p>
+        <ol>
+            <li>Click "Subscribe All Users"</li>
+            <li>All three users should subscribe successfully</li>
+            <li>Check logs: Alice=free/lobby, Bob=premium/premium, Charlie=vip/vip</li>
+        </ol>
+
+        <p><strong>Test 2: Room-Based Filtering (canSendMessage)</strong></p>
+        <ol>
+            <li>Alice sends to lobby → Only Alice sees it (others in different rooms)</li>
+            <li>Bob sends to premium → Only Bob sees it</li>
+            <li>Charlie sends to VIP → Only Charlie sees it</li>
+        </ol>
+
+        <p><strong>Test 3: Message Length Limits (beforePublish)</strong></p>
+        <ol>
+            <li>Alice: Type 150 characters → Message truncated to 100 chars with "[truncated]"</li>
+            <li>Bob: Type 600 characters → Message truncated to 500 chars</li>
+            <li>Charlie: Type 2500 characters → Message truncated to 2000 chars</li>
+        </ol>
+
+        <p><strong>Test 4: Rate Limiting (allowPublish)</strong></p>
+        <ol>
+            <li>Alice: Send message → Immediately send again → Second should FAIL (5s cooldown)</li>
+            <li>Bob: Send → Wait 2s → Send again → Should succeed (2s cooldown)</li>
+            <li>Charlie: Send → Wait 1s → Send again → Should succeed (1s cooldown)</li>
+        </ol>
+
+        <p><strong>Test 5: Premium Features (canSendMessage + beforeSendMessage)</strong></p>
+        <ol>
+            <li>Bob clicks "Send Premium Feature" → Message includes attachment</li>
+            <li>Bob sees: Real attachment info</li>
+            <li>Alice sees: "[PREMIUM FEATURE - Upgrade to view]" (free tier)</li>
+        </ol>
+
+        <p><strong>Test 6: Privacy Controls (beforeSendMessage)</strong></p>
+        <ol>
+            <li>Messages include email field (alice@example.com, etc.)</li>
+            <li>Each user sees their own email, but others see "[HIDDEN]"</li>
+            <li>Phone numbers: Only sender + VIPs see real number, others see "[VIP ONLY]"</li>
+        </ol>
+
+        <p><strong>Test 7: Sanitization (beforePublish)</strong></p>
+        <ol>
+            <li>Try sending: "&lt;script&gt;alert('hack')&lt;/script&gt;"</li>
+            <li>Should be sanitized to: "&amp;lt;[removed]&amp;gt;alert('hack')&amp;lt;/[removed]&amp;gt;"</li>
+        </ol>
+    </div>
+
+    <script>
+        var ws = null;
+
+        var users = {
+            alice: {
+                userId: 'alice',
+                tier: 'free',
+                room: 'lobby',
+                subscribed: false
+            },
+            bob: {
+                userId: 'bob',
+                tier: 'premium',
+                room: 'premium',
+                subscribed: false
+            },
+            charlie: {
+                userId: 'charlie',
+                tier: 'vip',
+                room: 'vip',
+                subscribed: false
+            }
+        };
+
+        function addMessage(user, text, type) {
+            var messagesDiv = document.getElementById('messages' + capitalizeFirst(user));
+            var div = document.createElement('div');
+            div.className = 'message ' + (type || '');
+            div.innerHTML = new Date().toLocaleTimeString() + ' - ' + text;
+            messagesDiv.appendChild(div);
+            div.scrollIntoView();
+        }
+
+        function capitalizeFirst(str) {
+            return str.charAt(0).toUpperCase() + str.slice(1);
+        }
+
+        function connect() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                alert('Already connected!');
+                return;
+            }
+
+            ws = new WebSocket('ws://localhost:8580/openbd/ws');
+
+            ws.onopen = function() {
+                addMessage('alice', '✅ WebSocket Connected', 'success');
+                addMessage('bob', '✅ WebSocket Connected', 'success');
+                addMessage('charlie', '✅ WebSocket Connected', 'success');
+            };
+
+            ws.onmessage = function(evt) {
+                try {
+                    var msg = JSON.parse(evt.data);
+                    handleMessage(msg);
+                } catch (e) {
+                    console.error('Error parsing message:', e);
+                }
+            };
+
+            ws.onerror = function(evt) {
+                addMessage('alice', '❌ WebSocket error', 'error');
+                addMessage('bob', '❌ WebSocket error', 'error');
+                addMessage('charlie', '❌ WebSocket error', 'error');
+            };
+
+            ws.onclose = function() {
+                addMessage('alice', '🔌 Disconnected', 'info');
+                addMessage('bob', '🔌 Disconnected', 'info');
+                addMessage('charlie', '🔌 Disconnected', 'info');
+                ws = null;
+            };
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+
+        function handleMessage(msg) {
+            switch (msg.type) {
+                case 'subscribed':
+                    Object.keys(users).forEach(function(user) {
+                        addMessage(user, '✅ Subscribed to ' + msg.channelName, 'success');
+                    });
+                    break;
+
+                case 'message':
+                    var msgData = msg.message;
+
+                    // Display for each user based on their viewerTier
+                    Object.keys(users).forEach(function(user) {
+                        var userData = users[user];
+
+                        // Check if this message is for this user's tier
+                        if (msgData.viewerTier === userData.tier || !msgData.viewerTier) {
+                            var isOwn = msgData.isYou === true;
+
+                            var displayText = '';
+
+                            if (isOwn) {
+                                displayText += '<strong>[YOU]</strong> ';
+                            }
+
+                            if (msgData.badge) {
+                                displayText += '[' + msgData.badge + '] ';
+                            }
+
+                            displayText += (msgData.text || msgData.TEXT || '');
+
+                            if (msgData.email || msgData.EMAIL) {
+                                displayText += ' <em>[Email: ' + (msgData.email || msgData.EMAIL) + ']</em>';
+                            }
+
+                            if (msgData.phoneNumber || msgData.PHONENUMBER) {
+                                displayText += ' <em>[Phone: ' + (msgData.phoneNumber || msgData.PHONENUMBER) + ']</em>';
+                            }
+
+                            if (msgData.attachment || msgData.ATTACHMENT) {
+                                displayText += ' <em>[Attachment: ' + (msgData.attachment || msgData.ATTACHMENT) + ']</em>';
+                            }
+
+                            if (msgData.truncated) {
+                                displayText += ' <em>[Message was truncated]</em>';
+                            }
+
+                            addMessage(user, displayText, isOwn ? 'own' : '');
+                        }
+                    });
+                    break;
+
+                case 'error':
+                    Object.keys(users).forEach(function(user) {
+                        addMessage(user, '❌ ' + msg.message, 'error');
+                    });
+                    break;
+            }
+        }
+
+        function subscribeUser(user) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('Not connected! Click Connect WebSocket first.');
+                return;
+            }
+
+            var userData = users[user];
+
+            var msg = {
+                type: 'subscribe',
+                channelName: 'premiumChat',
+                subscriberInfo: {
+                    userId: userData.userId,
+                    tier: userData.tier,
+                    room: userData.room
+                }
+            };
+
+            ws.send(JSON.stringify(msg));
+            userData.subscribed = true;
+        }
+
+        function subscribeAll() {
+            subscribeUser('alice');
+            setTimeout(function() { subscribeUser('bob'); }, 200);
+            setTimeout(function() { subscribeUser('charlie'); }, 400);
+        }
+
+        function publishUser(user, isPremiumFeature) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('Not connected!');
+                return;
+            }
+
+            var userData = users[user];
+            var text = document.getElementById('msg' + capitalizeFirst(user)).value;
+
+            if (!text) {
+                alert('Enter a message!');
+                return;
+            }
+
+            var message = {
+                text: text,
+                fromUserId: userData.userId,
+                room: userData.room,
+                timestamp: new Date().toISOString(),
+                email: userData.userId + '@example.com',
+                phoneNumber: '555-' + (user === 'alice' ? '1111' : user === 'bob' ? '2222' : '3333')
+            };
+
+            if (isPremiumFeature) {
+                message.isPremiumFeature = true;
+                message.attachment = 'premium_document.pdf';
+                message.richText = '<b>Formatted content</b>';
+            }
+
+            var msg = {
+                type: 'publish',
+                channelName: 'premiumChat',
+                message: message
+            };
+
+            ws.send(JSON.stringify(msg));
+            addMessage(user, '📤 Sent to room: ' + userData.room, 'info');
+        }
+
+        function clearAllMessages() {
+            document.getElementById('messagesAlice').innerHTML = '';
+            document.getElementById('messagesBob').innerHTML = '';
+            document.getElementById('messagesCharlie').innerHTML = '';
+        }
+    </script>
+</body>
+</html>
