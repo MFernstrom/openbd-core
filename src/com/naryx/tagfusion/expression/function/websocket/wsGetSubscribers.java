@@ -129,11 +129,6 @@ public class wsGetSubscribers extends functionBase {
 				result.addElement(subscriberStruct);
 			}
 
-			com.naryx.tagfusion.cfm.engine.cfEngine.log(
-				"[WebSocket] wsGetSubscribers: Channel '" + channelName.trim() +
-				"' has " + subscribers.size() + " subscriber(s)"
-			);
-
 		} catch (cfmRunTimeException e) {
 			throwException(_session, "Error building subscriber list: " + e.getMessage());
 		}

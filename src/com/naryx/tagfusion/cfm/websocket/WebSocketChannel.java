@@ -80,14 +80,6 @@ public class WebSocketChannel {
 		this.listenerCFC = listenerCFC;
 		// ConcurrentHashMap.newKeySet() provides thread-safe Set
 		this.subscribers = ConcurrentHashMap.newKeySet();
-
-		if (listenerCFC != null) {
-			cfEngine.log("[WebSocket] Channel created: " + channelName +
-			             " (with listener CFC)");
-		} else {
-			cfEngine.log("[WebSocket] Channel created: " + channelName +
-			             " (no listener)");
-		}
 	}
 
 	/**
@@ -97,17 +89,7 @@ public class WebSocketChannel {
 	 * @return true if added, false if already subscribed
 	 */
 	public boolean addSubscriber(WebSocketConnection conn) {
-		boolean added = subscribers.add(conn);
-
-		if (added) {
-			cfEngine.log("[WebSocket] Channel '" + channelName + "': Added subscriber " +
-					conn.getConnectionId() + " (total: " + subscribers.size() + ")");
-		} else {
-			cfEngine.log("[WebSocket] Channel '" + channelName + "': Subscriber " +
-					conn.getConnectionId() + " already subscribed");
-		}
-
-		return added;
+		return subscribers.add(conn);
 	}
 
 	/**
@@ -117,17 +99,7 @@ public class WebSocketChannel {
 	 * @return true if removed, false if not subscribed
 	 */
 	public boolean removeSubscriber(WebSocketConnection conn) {
-		boolean removed = subscribers.remove(conn);
-
-		if (removed) {
-			cfEngine.log("[WebSocket] Channel '" + channelName + "': Removed subscriber " +
-					conn.getConnectionId() + " (total: " + subscribers.size() + ")");
-		} else {
-			cfEngine.log("[WebSocket] Channel '" + channelName + "': Subscriber " +
-					conn.getConnectionId() + " was not subscribed");
-		}
-
-		return removed;
+		return subscribers.remove(conn);
 	}
 
 	/**
@@ -142,11 +114,7 @@ public class WebSocketChannel {
 	public void publish(String message, cfData messageData) {
 		int subscriberCount = subscribers.size();
 
-		cfEngine.log("[WebSocket] Channel '" + channelName + "': Publishing message to " +
-				subscriberCount + " subscriber(s)");
-
 		if (subscriberCount == 0) {
-			cfEngine.log("[WebSocket] Channel '" + channelName + "': No subscribers, message not sent");
 			return;
 		}
 
@@ -177,9 +145,6 @@ public class WebSocketChannel {
 					}
 
 					// Hook 1: canSendMessage(subscriberInfo, message) - Filter check
-					cfEngine.log("[WebSocket] Channel '" + channelName + "': Invoking canSendMessage() for " +
-							conn.getConnectionId());
-
 					cfArgStructData canSendArgs = new cfArgStructData();
 					canSendArgs.setData("subscriberInfo", subscriberInfo);
 					canSendArgs.setData("message", messageData);
@@ -196,15 +161,11 @@ public class WebSocketChannel {
 					}
 
 					if (!allowed) {
-						cfEngine.log("[WebSocket] Channel '" + channelName + "': Message filtered for " +
-								conn.getConnectionId() + " by canSendMessage() hook");
 						filteredCount++;
 						continue; // Skip this subscriber
 					}
 
 					// Hook 2: beforeSendMessage(subscriberInfo, message) - Per-subscriber transformation
-					cfEngine.log("[WebSocket] Channel '" + channelName + "': Invoking beforeSendMessage() for " +
-							conn.getConnectionId());
 
 					cfArgStructData beforeSendArgs = new cfArgStructData();
 					beforeSendArgs.setData("subscriberInfo", subscriberInfo);
@@ -218,9 +179,6 @@ public class WebSocketChannel {
 						finalMessage = "{\"type\":\"message\",\"channelName\":\"" +
 								escapeJSON(channelName) + "\",\"message\":" +
 								serializeJSON(customizedMessage) + "}";
-
-						cfEngine.log("[WebSocket] Channel '" + channelName + "': Message customized for " +
-								conn.getConnectionId());
 					}
 				}
 
@@ -230,14 +188,11 @@ public class WebSocketChannel {
 
 			} catch (Exception e) {
 				errorCount++;
-				cfEngine.log("[WebSocket] Channel '" + channelName + "': Failed to send to " +
+				// Log error but continue broadcasting to other subscribers
+				cfEngine.log("[WebSocket] ERROR: Failed to send to connection " +
 						conn.getConnectionId() + ": " + e.getMessage());
-				e.printStackTrace();
 			}
 		}
-
-		cfEngine.log("[WebSocket] Channel '" + channelName + "': Broadcast complete - " +
-				successCount + " sent, " + filteredCount + " filtered, " + errorCount + " errors");
 	}
 
 	/**

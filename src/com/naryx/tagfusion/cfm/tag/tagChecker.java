@@ -333,7 +333,8 @@ public class tagChecker extends Object {
 		tagElements.put("CFZIP", 				new TagElement("CFZIP", true, "com.naryx.tagfusion.cfm.tag.io.cfZIP"));
 		tagElements.put("CFZIPPARAM", 	new TagElement("CFZIPPARAM", true, "com.naryx.tagfusion.cfm.tag.io.cfZIPPARAM"));
 		tagElements.put("CFDEBUGGER", 	new TagElement("CFDEBUGGER", true, "com.naryx.tagfusion.cfm.tag.cfDEBUGGER"));
-		
+		tagElements.put("CFWEBSOCKET", 	new TagElement("CFWEBSOCKET", true, "com.naryx.tagfusion.cfm.tag.ext.cfWEBSOCKET"));
+
 		tagElements.put("CFFEED", 			new TagElement("CFFEED", true, "com.naryx.tagfusion.cfm.tag.cffeed.cfFEED"));
 		
 		tagElements.put("CFVIDEOPLAYER",	new TagElement("CFVIDEOPLAYER", true, "com.naryx.tagfusion.cfm.tag.ext.video.cfVIDEOPLAYER"));

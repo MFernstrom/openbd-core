@@ -98,11 +98,6 @@ public class wsRegisterChannel extends functionBase {
 				// Register channel with listener
 				success = manager.registerChannel(channelName.trim(), listenerCFC);
 
-				com.naryx.tagfusion.cfm.engine.cfEngine.log(
-					"[WebSocket] wsRegisterChannel: Registered '" + channelName.trim() +
-					"' with listener CFC: " + listenerPath.trim()
-				);
-
 			} catch (cfmRunTimeException e) {
 				// Re-throw CFC loading errors
 				throw e;
@@ -135,10 +130,6 @@ public class wsRegisterChannel extends functionBase {
 
 			// Verify it extends ChannelListener (optional validation)
 			// We could check the component metadata here if needed
-
-			com.naryx.tagfusion.cfm.engine.cfEngine.log(
-				"[WebSocket] Successfully loaded listener CFC: " + cfcPath
-			);
 
 			return listenerCFC;
 

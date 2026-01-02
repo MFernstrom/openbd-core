@@ -89,9 +89,6 @@ public class WebSocketChannelHandler extends SimpleChannelInboundHandler<WebSock
 		// Create connection wrapper
 		connection = new WebSocketConnection(ctx);
 
-		cfEngine.log("[WebSocket] New connection: " + connection.getConnectionId() +
-		             " (total: " + server.getConnectionCount() + ")");
-
 		super.channelActive(ctx);
 	}
 
@@ -110,7 +107,6 @@ public class WebSocketChannelHandler extends SimpleChannelInboundHandler<WebSock
 
 		} else if (frame instanceof CloseWebSocketFrame) {
 			// Client requested close
-			cfEngine.log("[WebSocket] Close frame received: " + connection.getConnectionId());
 			handleClose();
 
 		} else if (frame instanceof PingWebSocketFrame) {
@@ -121,11 +117,8 @@ public class WebSocketChannelHandler extends SimpleChannelInboundHandler<WebSock
 			// Pong received (no action needed)
 			// This is a response to our ping if we were sending them
 
-		} else {
-			// Unsupported frame type
-			cfEngine.log("[WebSocket] Unsupported frame type: " + frame.getClass().getName() +
-			             " from " + connection.getConnectionId());
 		}
+		// Note: Other frame types (binary, continuation) are not currently supported
 	}
 
 	/**
@@ -135,9 +128,6 @@ public class WebSocketChannelHandler extends SimpleChannelInboundHandler<WebSock
 	 */
 	@Override
 	public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-		cfEngine.log("[WebSocket] Connection closed: " +
-		             (connection != null ? connection.getConnectionId() : "unknown") +
-		             " (total: " + (server.getConnectionCount() - 1) + ")");
 
 		handleClose();
 		super.channelInactive(ctx);
@@ -171,9 +161,6 @@ public class WebSocketChannelHandler extends SimpleChannelInboundHandler<WebSock
 				cfEngine.log("[WebSocket] ERROR: Received message but connection is null");
 				return;
 			}
-
-			cfEngine.log("[WebSocket] Received from " + connection.getConnectionId() + ": " +
-			             (message.length() > 100 ? message.substring(0, 100) + "..." : message));
 
 			// Parse JSON message
 			cfStructData jsonMessage = parseJSON(message);

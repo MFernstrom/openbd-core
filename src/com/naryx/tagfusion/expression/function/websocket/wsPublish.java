@@ -108,16 +108,6 @@ public class wsPublish extends functionBase {
 		// Publish the message
 		boolean success = manager.publish(channelName.trim(), serverPublisher, message);
 
-		if (success) {
-			com.naryx.tagfusion.cfm.engine.cfEngine.log(
-				"[WebSocket] wsPublish: Successfully published to channel '" + channelName.trim() + "'"
-			);
-		} else {
-			com.naryx.tagfusion.cfm.engine.cfEngine.log(
-				"[WebSocket] wsPublish: Failed to publish to channel '" + channelName.trim() + "'"
-			);
-		}
-
 		return cfBooleanData.getcfBooleanData(success);
 	}
 }

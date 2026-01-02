@@ -111,19 +111,15 @@ public class WebSocketServer {
 		}
 
 		this.port = port;
-		cfEngine.log("[WebSocket] Initializing Netty server on port " + port + "...");
 
 		try {
 			// Boss group accepts connections (1 thread is sufficient)
-			cfEngine.log("[WebSocket] Creating boss event loop group (1 thread)...");
 			bossGroup = new NioEventLoopGroup(1);
 
 			// Worker group handles I/O for connections (default: 2 * CPU cores)
-			cfEngine.log("[WebSocket] Creating worker event loop group...");
 			workerGroup = new NioEventLoopGroup();
 
 			// Configure server bootstrap
-			cfEngine.log("[WebSocket] Configuring server bootstrap...");
 			bootstrap = new ServerBootstrap();
 			bootstrap.group(bossGroup, workerGroup)
 					.channel(NioServerSocketChannel.class)
@@ -149,14 +145,11 @@ public class WebSocketServer {
 					.childOption(ChannelOption.SO_KEEPALIVE, true);
 
 			// Bind and start accepting connections
-			cfEngine.log("[WebSocket] Binding to port " + port + "...");
 			ChannelFuture future = bootstrap.bind(port).sync();
 			serverChannel = future.channel();
 			running = true;
 
-			cfEngine.log("[WebSocket] Server started successfully!");
-			cfEngine.log("[WebSocket] Listening on port " + port + " at path " + WEBSOCKET_PATH);
-			cfEngine.log("[WebSocket] Max connections: " + MAX_CONNECTIONS);
+			cfEngine.log("[WebSocket] Server started on port " + port + WEBSOCKET_PATH + " (max connections: " + MAX_CONNECTIONS + ")");
 
 		} catch (Exception e) {
 			cleanup();
