@@ -215,7 +215,7 @@ public class cfmRunTimeException extends Exception {
 			else
 				buffer.append( "" );
 			
-			buffer.append( "'/></a><font size='+1' color='black'><b>OpenBD Internal Server Error</b></font><div><a style='text-decoration:none;color:grey;margin-left:20' href='http://openbd.org/manual/'>Need some help?  Visit our manual http://openbd.org/manual/</a></div</td></tr><tr><td colspan=2><b>The page you were executing caused an internal server error</b></td></tr>");
+			buffer.append( "'/></a><font size='+1' color='black'><b>OpenBD Internal Server Error</b></font><div><a style='text-decoration:none;color:grey;margin-left:20' href='http://openbd.org/manual/'>Need some help?  Visit our manual http://openbd.org/manual/</a></div></td></tr><tr><td colspan=2><b>The page you were executing caused an internal server error</b></td></tr>");
 		} else {
 			buffer.append("<tr class='redheader' bgcolor='#CC0033'><td colspan='2' align='left'><a href='http://openbd.org/manual/'><img style='float: right; margin: .20em .1em .1em .3em;' src='");
 			
@@ -224,7 +224,7 @@ public class cfmRunTimeException extends Exception {
 			else
 				buffer.append( "" );
 			
-			buffer.append( "'/></a><font size='+1' color='yellow'><b>CFML Runtime Error</b></font><div><a style='text-decoration:none;color:white;margin-left:20' href='http://openbd.org/manual/'>Need some help?  Visit our manual http://openbd.org/manual/</a></div</td></tr>");
+			buffer.append( "'/></a><font size='+1' color='yellow'><b>CFML Runtime Error</b></font><div><a style='text-decoration:none;color:white;margin-left:20' href='http://openbd.org/manual/'>Need some help?  Visit our manual http://openbd.org/manual/</a></div></td></tr>");
 
 			if (catchData.containsKey("message")) {
 				buffer.append("<tr><td colspan=2><b>");

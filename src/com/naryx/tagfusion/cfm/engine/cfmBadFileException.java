@@ -142,7 +142,7 @@ public class cfmBadFileException extends cfmRunTimeException {
 			else
 				buffer.append( "" );
 			
-			buffer.append( "'/></a><font size='+1' color='black'><b>OpenBD Bad File Exception</b></font><div><a style='text-decoration:none;color:grey;margin-left:20' href='http://openbd.org/manual/'>Need some help?  Visit our manual http://openbd.org/manual/</a></div</td></tr>");
+			buffer.append( "'/></a><font size='+1' color='black'><b>OpenBD Bad File Exception</b></font><div><a style='text-decoration:none;color:grey;margin-left:20' href='http://openbd.org/manual/'>Need some help?  Visit our manual http://openbd.org/manual/</a></div></td></tr>");
 			buffer.append("<tr><td colspan=2><b>The page you were executing caused an internal server error</b></td></tr></table>");
 			
 			List<cfCatchData> listError	= catchData.getErrorList();
