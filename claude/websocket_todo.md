@@ -27,33 +27,33 @@ This plan outlines the implementation of WebSocket support in OpenBD to match Ad
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    Client Browser                           │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │  <cfwebsocket name="ws" onMessage="handleMsg"        │  │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │  <cfwebsocket name="ws" onMessage="handleMsg"         │  │
 │  │               subscribeTo="chatChannel">              │  │
 │  │                                                       │  │
 │  │  JavaScript API:                                      │  │
-│  │  - ws.subscribe({channelName:"...", subscriberInfo})│  │
-│  │  - ws.publish(channelName, message)                  │  │
-│  │  - ws.openConnection()                               │  │
-│  │  - ws.closeConnection()                              │  │
-│  └──────────────────────────────────────────────────────┘  │
+│  │  - ws.subscribe({channelName:"...", subscriberInfo})  │  │
+│  │  - ws.publish(channelName, message)                   │  │
+│  │  - ws.openConnection()                                │  │
+│  │  - ws.closeConnection()                               │  │
+│  └───────────────────────────────────────────────────────┘  │
 └───────────────────────┬─────────────────────────────────────┘
                         │ WebSocket (ws://host:8575/cfws)
                         │
 ┌───────────────────────▼─────────────────────────────────────┐
 │               Adobe CF WebSocket Server                     │
 │                    (Ports 8575/8577)                        │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │          Channel Router & Manager                    │  │
-│  │  - Message routing to subscribers                    │  │
-│  │  - Subscription management                           │  │
-│  │  - Channel lifecycle                                 │  │
-│  └────────┬─────────────────────────┬───────────────────┘  │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │          Channel Router & Manager                     │  │
+│  │  - Message routing to subscribers                     │  │
+│  │  - Subscription management                            │  │
+│  │  - Channel lifecycle                                  │  │
+│  └────────┬─────────────────────────┬────────────────────┘  │
 │           │                         │                       │
-│  ┌────────▼────────┐       ┌────────▼────────┐            │
-│  │ chatChannel     │       │ notifyChannel   │            │
-│  │ Listener CFC    │       │ Listener CFC    │            │
-│  └─────────────────┘       └─────────────────┘            │
+│  ┌────────▼────────┐       ┌────────▼────────┐              │
+│  │ chatChannel     │       │ notifyChannel   │              │
+│  │ Listener CFC    │       │ Listener CFC    │              │
+│  └─────────────────┘       └─────────────────┘              │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -69,42 +69,42 @@ This plan outlines the implementation of WebSocket support in OpenBD to match Ad
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    Client Browser                           │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │  <cfwebsocket name="ws" onMessage="handleMsg"        │  │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │  <cfwebsocket name="ws" onMessage="handleMsg"         │  │
 │  │               subscribeTo="chatChannel">              │  │
 │  │                                                       │  │
-│  │  JavaScript API (identical to Adobe CF):             │  │
-│  │  - ws.subscribe({channelName:"...", subscriberInfo})│  │
-│  │  - ws.publish(channelName, message)                  │  │
-│  │  - ws.openConnection(), closeConnection()           │  │
-│  └──────────────────────────────────────────────────────┘  │
+│  │  JavaScript API (identical to Adobe CF):              │  │
+│  │  - ws.subscribe({channelName:"...", subscriberInfo})  │  │
+│  │  - ws.publish(channelName, message)                   │  │
+│  │  - ws.openConnection(), closeConnection()             │  │
+│  └───────────────────────────────────────────────────────┘  │
 └───────────────────────┬─────────────────────────────────────┘
                         │ WebSocket (ws://host:8580/openbd/ws)
                         │
 ┌───────────────────────▼─────────────────────────────────────┐
 │              OpenBD WebSocket Server (New)                  │
 │                (Netty-based, port 8580)                     │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │  WebSocketChannelManager (New)                       │  │
-│  │  - Channel registration & lifecycle                  │  │
-│  │  - Subscription management                           │  │
-│  │  - Message routing to subscribers                    │  │
-│  │  - Channel Listener CFC invocation                   │  │
-│  └────────┬─────────────────────────┬───────────────────┘  │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │  WebSocketChannelManager (New)                        │  │
+│  │  - Channel registration & lifecycle                   │  │
+│  │  - Subscription management                            │  │
+│  │  - Message routing to subscribers                     │  │
+│  │  - Channel Listener CFC invocation                    │  │
+│  └────────┬─────────────────────────┬────────────────────┘  │
 │           │                         │                       │
-│  ┌────────▼────────┐       ┌────────▼────────┐            │
-│  │ chatListener    │       │ notifyListener  │            │
-│  │ CFC (extends    │       │ CFC (extends    │            │
-│  │ WebSocket       │       │ WebSocket       │            │
-│  │ ChannelListener)│       │ ChannelListener)│            │
-│  └─────────────────┘       └─────────────────┘            │
+│  ┌────────▼────────┐       ┌────────▼────────┐              │
+│  │ chatListener    │       │ notifyListener  │              │
+│  │ CFC (extends    │       │ CFC (extends    │              │
+│  │ WebSocket       │       │ WebSocket       │              │
+│  │ ChannelListener)│       │ ChannelListener)│              │
+│  └─────────────────┘       └─────────────────┘              │
 │                                                             │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │  Integration with cfEngine                           │  │
-│  │  - Uses existing cfSession for auth context          │  │
-│  │  - Leverages cfCOMPONENT for Channel Listener CFCs  │  │
-│  │  - Uses existing request context infrastructure      │  │
-│  └──────────────────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │  Integration with cfEngine                            │  │
+│  │  - Uses existing cfSession for auth context           │  │
+│  │  - Leverages cfCOMPONENT for Channel Listener CFCs    │  │
+│  │  - Uses existing request context infrastructure       │  │
+│  └───────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
