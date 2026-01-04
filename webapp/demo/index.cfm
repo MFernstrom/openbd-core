@@ -12,6 +12,7 @@
 
 <ul>
 	<li style="padding: 2px;"><a href="../openbdtest/">OpenBD Test Suite</a></li>
+	<li style="padding: 2px;"><a href="websocket">Websocket Demo</a></li>
 	<li style="padding: 2px;"><a href="cfdump.cfm">&lt;cfdump&gt;</a></li>
 	<li style="padding: 2px;"><a href="cfvideoplayer.cfm">&lt;cfvideoplayer&gt;</a></li>
 </ul>
